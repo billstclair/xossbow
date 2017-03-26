@@ -1,0 +1,23 @@
+["div",{},
+ [["style",{"type":"text/css"},
+   ["@@import \"style.css\""]
+  ],
+  ["h2",{},
+   [["#pageLink","index","$settings.siteName"]
+   ]
+  ],
+  ["h3",{},["$settings.siteSlogan"]],
+  ["table",{"class":"page"},
+   [["tr",{},
+     [["td",{"class":"sidebar"},
+       ["$settings.sidebar"]],
+      ["td",{},["$content"]]
+     ]
+    ]
+   ]
+  ],
+  ["div",{"class":"footer"},
+   ["$settings.footer"]
+  ]
+ ]
+]
