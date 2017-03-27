@@ -1,4 +1,4 @@
-module Xosbow exposing (..)
+module Xossbow exposing (..)
 
 import HtmlTemplate exposing ( makeLoaders, insertFunctions, insertMessages
                              , addPageProcessors
@@ -140,17 +140,17 @@ normalizePageLinkArgs atom =
         _ ->
             Nothing
 
-xosbowFunction : List (Atom Msg) -> d -> Atom Msg
-xosbowFunction args _ =
+xossbowFunction : List (Atom Msg) -> d -> Atom Msg
+xossbowFunction args _ =
     HtmlAtom
     <| a [ href <| "/" ]
-        [ text "XosBow" ]
+        [ text "Xossbow" ]
 
 functions : List (String, List (Atom Msg) -> Dicts Msg -> Atom Msg)
 functions =
     [ ( "pageLink", pageLinkFunction )
     , ( "emailLink", emailLinkFunction )
-    , ( "xosbow", xosbowFunction )
+    , ( "xossbow", xossbowFunction )
     ]
 
 type alias Extra =

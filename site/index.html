@@ -1,5 +1,5 @@
 <!DOCTYPE HTML>
-<html><head><meta charset="UTF-8"><title>Xosbow</title><style>html,head,body { padding:0; margin:0; }
+<html><head><meta charset="UTF-8"><title>Xossbow</title><style>html,head,body { padding:0; margin:0; }
 body { font-family: calibri, helvetica, arial, sans-serif; }</style><script type="text/javascript">
 (function() {
 'use strict';
@@ -16113,11 +16113,11 @@ var _elm_lang$http$Http$StringPart = F2(
 		return {ctor: 'StringPart', _0: a, _1: b};
 	});
 var _elm_lang$http$Http$stringPart = _elm_lang$http$Http$StringPart;
-var _billstclair$xosbow$Xosbow$br = A2(
+var _billstclair$xosbow$Xossbow$br = A2(
 	_elm_lang$html$Html$br,
 	{ctor: '[]'},
 	{ctor: '[]'});
-var _billstclair$xosbow$Xosbow$dictsDiv = F3(
+var _billstclair$xosbow$Xossbow$dictsDiv = F3(
 	function (thing, page, loaders) {
 		return A2(
 			_elm_lang$html$Html$div,
@@ -16167,7 +16167,7 @@ var _billstclair$xosbow$Xosbow$dictsDiv = F3(
 								_0: _elm_lang$html$Html$text('dicts:'),
 								_1: {
 									ctor: '::',
-									_0: _billstclair$xosbow$Xosbow$br,
+									_0: _billstclair$xosbow$Xossbow$br,
 									_1: {
 										ctor: '::',
 										_0: _elm_lang$html$Html$text(
@@ -16182,14 +16182,14 @@ var _billstclair$xosbow$Xosbow$dictsDiv = F3(
 				}
 			});
 	});
-var _billstclair$xosbow$Xosbow$maxOneLineEncodeLength = 60;
-var _billstclair$xosbow$Xosbow$encode = function (atom) {
+var _billstclair$xosbow$Xossbow$maxOneLineEncodeLength = 60;
+var _billstclair$xosbow$Xossbow$encode = function (atom) {
 	var res = A2(_billstclair$elm_html_template$HtmlTemplate$customEncodeAtom, 0, atom);
 	return (_elm_lang$core$Native_Utils.cmp(
 		_elm_lang$core$String$length(res),
-		_billstclair$xosbow$Xosbow$maxOneLineEncodeLength) < 1) ? res : _billstclair$elm_html_template$HtmlTemplate$encodeAtom(atom);
+		_billstclair$xosbow$Xossbow$maxOneLineEncodeLength) < 1) ? res : _billstclair$elm_html_template$HtmlTemplate$encodeAtom(atom);
 };
-var _billstclair$xosbow$Xosbow$updatePlayString = F2(
+var _billstclair$xosbow$Xossbow$updatePlayString = F2(
 	function (string, model) {
 		var decode = _billstclair$elm_html_template$HtmlTemplate$decodeAtom(string);
 		var decodeString = function () {
@@ -16197,7 +16197,7 @@ var _billstclair$xosbow$Xosbow$updatePlayString = F2(
 			if (_p0.ctor === 'Err') {
 				return A2(_elm_lang$core$Basics_ops['++'], 'Parse error: ', _p0._0);
 			} else {
-				return _billstclair$xosbow$Xosbow$encode(_p0._0);
+				return _billstclair$xosbow$Xossbow$encode(_p0._0);
 			}
 		}();
 		var evalString = function () {
@@ -16205,7 +16205,7 @@ var _billstclair$xosbow$Xosbow$updatePlayString = F2(
 			if (_p1.ctor === 'Err') {
 				return '';
 			} else {
-				return _billstclair$xosbow$Xosbow$encode(
+				return _billstclair$xosbow$Xossbow$encode(
 					A2(
 						_billstclair$elm_html_template$HtmlTemplate$eval,
 						_p1._0,
@@ -16228,7 +16228,7 @@ var _billstclair$xosbow$Xosbow$updatePlayString = F2(
 			_1: _elm_lang$core$Platform_Cmd$none
 		};
 	});
-var _billstclair$xosbow$Xosbow$continueLoading = F2(
+var _billstclair$xosbow$Xossbow$continueLoading = F2(
 	function (loaders, model) {
 		var _p3 = _billstclair$elm_html_template$HtmlTemplate$maybeLoadOutstandingPageOrTemplate(loaders);
 		if (_p3.ctor === 'Just') {
@@ -16268,7 +16268,7 @@ var _billstclair$xosbow$Xosbow$continueLoading = F2(
 			};
 		}
 	});
-var _billstclair$xosbow$Xosbow$pageFetchDone = F4(
+var _billstclair$xosbow$Xossbow$pageFetchDone = F4(
 	function (name, loaders, result, model) {
 		var _p6 = result;
 		if (_p6.ctor === 'Err') {
@@ -16311,11 +16311,11 @@ var _billstclair$xosbow$Xosbow$pageFetchDone = F4(
 					_1: _elm_lang$core$Platform_Cmd$none
 				};
 			} else {
-				return A2(_billstclair$xosbow$Xosbow$continueLoading, _p7._0, model);
+				return A2(_billstclair$xosbow$Xossbow$continueLoading, _p7._0, model);
 			}
 		}
 	});
-var _billstclair$xosbow$Xosbow$templateFetchDone = F4(
+var _billstclair$xosbow$Xossbow$templateFetchDone = F4(
 	function (name, loaders, result, model) {
 		var _p8 = result;
 		if (_p8.ctor === 'Err') {
@@ -16359,17 +16359,17 @@ var _billstclair$xosbow$Xosbow$templateFetchDone = F4(
 					_1: _elm_lang$core$Platform_Cmd$none
 				};
 			} else {
-				return A2(_billstclair$xosbow$Xosbow$continueLoading, _p9._0, model);
+				return A2(_billstclair$xosbow$Xossbow$continueLoading, _p9._0, model);
 			}
 		}
 	});
-var _billstclair$xosbow$Xosbow$templateDir = function (loaders) {
+var _billstclair$xosbow$Xossbow$templateDir = function (loaders) {
 	return function (_) {
 		return _.templateDir;
 	}(
 		_billstclair$elm_html_template$HtmlTemplate$getExtra(loaders));
 };
-var _billstclair$xosbow$Xosbow$httpGetString = function (url) {
+var _billstclair$xosbow$Xossbow$httpGetString = function (url) {
 	return _elm_lang$http$Http$request(
 		{
 			method: 'GET',
@@ -16385,7 +16385,7 @@ var _billstclair$xosbow$Xosbow$httpGetString = function (url) {
 			withCredentials: false
 		});
 };
-var _billstclair$xosbow$Xosbow$add_page_Property = F3(
+var _billstclair$xosbow$Xossbow$add_page_Property = F3(
 	function (name, page, loaders) {
 		var _p10 = page;
 		if (_p10.ctor === 'PListAtom') {
@@ -16407,8 +16407,8 @@ var _billstclair$xosbow$Xosbow$add_page_Property = F3(
 			return loaders;
 		}
 	});
-var _billstclair$xosbow$Xosbow$initialExtra = {templateDir: 'default'};
-var _billstclair$xosbow$Xosbow$xosbowFunction = F2(
+var _billstclair$xosbow$Xossbow$initialExtra = {templateDir: 'default'};
+var _billstclair$xosbow$Xossbow$xossbowFunction = F2(
 	function (args, _p11) {
 		return _billstclair$elm_html_template$HtmlTemplate_Types$HtmlAtom(
 			A2(
@@ -16420,11 +16420,11 @@ var _billstclair$xosbow$Xosbow$xosbowFunction = F2(
 				},
 				{
 					ctor: '::',
-					_0: _elm_lang$html$Html$text('XosBow'),
+					_0: _elm_lang$html$Html$text('Xossbow'),
 					_1: {ctor: '[]'}
 				}));
 	});
-var _billstclair$xosbow$Xosbow$normalizePageLinkArgs = function (atom) {
+var _billstclair$xosbow$Xossbow$normalizePageLinkArgs = function (atom) {
 	var _p12 = atom;
 	_v11_2:
 	do {
@@ -16447,7 +16447,7 @@ var _billstclair$xosbow$Xosbow$normalizePageLinkArgs = function (atom) {
 	} while(false);
 	return _elm_lang$core$Maybe$Nothing;
 };
-var _billstclair$xosbow$Xosbow$emailLinkFunction = F2(
+var _billstclair$xosbow$Xossbow$emailLinkFunction = F2(
 	function (args, _p14) {
 		var _p15 = args;
 		if (((_p15.ctor === '::') && (_p15._0.ctor === 'StringAtom')) && (_p15._1.ctor === '[]')) {
@@ -16470,57 +16470,57 @@ var _billstclair$xosbow$Xosbow$emailLinkFunction = F2(
 			return A2(_billstclair$elm_html_template$HtmlTemplate$cantFuncall, 'mailLink', args);
 		}
 	});
-var _billstclair$xosbow$Xosbow$templateFileType = '.json';
-var _billstclair$xosbow$Xosbow$templateFilename = function (name) {
-	return A2(_elm_lang$core$Basics_ops['++'], name, _billstclair$xosbow$Xosbow$templateFileType);
+var _billstclair$xosbow$Xossbow$templateFileType = '.json';
+var _billstclair$xosbow$Xossbow$templateFilename = function (name) {
+	return A2(_elm_lang$core$Basics_ops['++'], name, _billstclair$xosbow$Xossbow$templateFileType);
 };
-var _billstclair$xosbow$Xosbow$postTemplate = 'post';
-var _billstclair$xosbow$Xosbow$indexPage = 'index';
-var _billstclair$xosbow$Xosbow$nodeTemplate = 'node';
-var _billstclair$xosbow$Xosbow$pageTemplate = 'page';
-var _billstclair$xosbow$Xosbow$indexTemplate = 'index';
-var _billstclair$xosbow$Xosbow$initialTemplates = {
+var _billstclair$xosbow$Xossbow$postTemplate = 'post';
+var _billstclair$xosbow$Xossbow$indexPage = 'index';
+var _billstclair$xosbow$Xossbow$nodeTemplate = 'node';
+var _billstclair$xosbow$Xossbow$pageTemplate = 'page';
+var _billstclair$xosbow$Xossbow$indexTemplate = 'index';
+var _billstclair$xosbow$Xossbow$initialTemplates = {
 	ctor: '::',
-	_0: _billstclair$xosbow$Xosbow$pageTemplate,
+	_0: _billstclair$xosbow$Xossbow$pageTemplate,
 	_1: {
 		ctor: '::',
-		_0: _billstclair$xosbow$Xosbow$indexTemplate,
+		_0: _billstclair$xosbow$Xossbow$indexTemplate,
 		_1: {
 			ctor: '::',
-			_0: _billstclair$xosbow$Xosbow$nodeTemplate,
+			_0: _billstclair$xosbow$Xossbow$nodeTemplate,
 			_1: {ctor: '[]'}
 		}
 	}
 };
-var _billstclair$xosbow$Xosbow$settingsPageName = '_settings';
-var _billstclair$xosbow$Xosbow$initialPages = {
+var _billstclair$xosbow$Xossbow$settingsPageName = '_settings';
+var _billstclair$xosbow$Xossbow$initialPages = {
 	ctor: '::',
-	_0: _billstclair$xosbow$Xosbow$settingsPageName,
+	_0: _billstclair$xosbow$Xossbow$settingsPageName,
 	_1: {
 		ctor: '::',
-		_0: _billstclair$xosbow$Xosbow$indexPage,
+		_0: _billstclair$xosbow$Xossbow$indexPage,
 		_1: {ctor: '[]'}
 	}
 };
-var _billstclair$xosbow$Xosbow$settingsFile = 'settings';
-var _billstclair$xosbow$Xosbow$installSettings = F3(
+var _billstclair$xosbow$Xossbow$settingsFile = 'settings';
+var _billstclair$xosbow$Xossbow$installSettings = F3(
 	function (name, settings, loaders) {
 		return A3(
 			_billstclair$elm_html_template$HtmlTemplate$setAtom,
-			_billstclair$xosbow$Xosbow$settingsFile,
+			_billstclair$xosbow$Xossbow$settingsFile,
 			settings,
 			A2(_billstclair$elm_html_template$HtmlTemplate$removePage, name, loaders));
 	});
-var _billstclair$xosbow$Xosbow$pageProcessors = {
+var _billstclair$xosbow$Xossbow$pageProcessors = {
 	ctor: '::',
-	_0: {ctor: '_Tuple2', _0: _billstclair$xosbow$Xosbow$settingsPageName, _1: _billstclair$xosbow$Xosbow$installSettings},
+	_0: {ctor: '_Tuple2', _0: _billstclair$xosbow$Xossbow$settingsPageName, _1: _billstclair$xosbow$Xossbow$installSettings},
 	_1: {
 		ctor: '::',
-		_0: {ctor: '_Tuple2', _0: '', _1: _billstclair$xosbow$Xosbow$add_page_Property},
+		_0: {ctor: '_Tuple2', _0: '', _1: _billstclair$xosbow$Xossbow$add_page_Property},
 		_1: {ctor: '[]'}
 	}
 };
-var _billstclair$xosbow$Xosbow$templateDirs = {
+var _billstclair$xosbow$Xossbow$templateDirs = {
 	ctor: '::',
 	_0: 'default',
 	_1: {
@@ -16533,29 +16533,29 @@ var _billstclair$xosbow$Xosbow$templateDirs = {
 		}
 	}
 };
-var _billstclair$xosbow$Xosbow$log = _elm_lang$core$Debug$log;
-var _billstclair$xosbow$Xosbow$fetchUrl = F2(
+var _billstclair$xosbow$Xossbow$log = _elm_lang$core$Debug$log;
+var _billstclair$xosbow$Xossbow$fetchUrl = F2(
 	function (url, wrapper) {
 		return A2(
 			_elm_lang$http$Http$send,
 			wrapper,
-			_billstclair$xosbow$Xosbow$httpGetString(
-				A2(_billstclair$xosbow$Xosbow$log, 'Getting URL', url)));
+			_billstclair$xosbow$Xossbow$httpGetString(
+				A2(_billstclair$xosbow$Xossbow$log, 'Getting URL', url)));
 	});
-var _billstclair$xosbow$Xosbow$Model = F8(
+var _billstclair$xosbow$Xossbow$Model = F8(
 	function (a, b, c, d, e, f, g, h) {
 		return {loaders: a, page: b, pendingPage: c, playString: d, parsedPlayString: e, evaluatedPlayString: f, renderedPlayString: g, error: h};
 	});
-var _billstclair$xosbow$Xosbow$Extra = function (a) {
+var _billstclair$xosbow$Xossbow$Extra = function (a) {
 	return {templateDir: a};
 };
-var _billstclair$xosbow$Xosbow$SetError = function (a) {
+var _billstclair$xosbow$Xossbow$SetError = function (a) {
 	return {ctor: 'SetError', _0: a};
 };
-var _billstclair$xosbow$Xosbow$UpdatePlayString = function (a) {
+var _billstclair$xosbow$Xossbow$UpdatePlayString = function (a) {
 	return {ctor: 'UpdatePlayString', _0: a};
 };
-var _billstclair$xosbow$Xosbow$playDiv = function (model) {
+var _billstclair$xosbow$Xossbow$playDiv = function (model) {
 	return A2(
 		_elm_lang$html$Html$div,
 		{ctor: '[]'},
@@ -16571,7 +16571,7 @@ var _billstclair$xosbow$Xosbow$playDiv = function (model) {
 						_0: _elm_lang$html$Html_Attributes$cols(80),
 						_1: {
 							ctor: '::',
-							_0: _elm_lang$html$Html_Events$onInput(_billstclair$xosbow$Xosbow$UpdatePlayString),
+							_0: _elm_lang$html$Html_Events$onInput(_billstclair$xosbow$Xossbow$UpdatePlayString),
 							_1: {ctor: '[]'}
 						}
 					}
@@ -16654,12 +16654,12 @@ var _billstclair$xosbow$Xosbow$playDiv = function (model) {
 			}
 		});
 };
-var _billstclair$xosbow$Xosbow$playDivFunction = F3(
+var _billstclair$xosbow$Xossbow$playDivFunction = F3(
 	function (model, _p18, _p17) {
 		return _billstclair$elm_html_template$HtmlTemplate_Types$HtmlAtom(
-			_billstclair$xosbow$Xosbow$playDiv(model));
+			_billstclair$xosbow$Xossbow$playDiv(model));
 	});
-var _billstclair$xosbow$Xosbow$view = function (model) {
+var _billstclair$xosbow$Xossbow$view = function (model) {
 	return A2(
 		_elm_lang$html$Html$div,
 		{ctor: '[]'},
@@ -16698,8 +16698,8 @@ var _billstclair$xosbow$Xosbow$view = function (model) {
 					} else {
 						var _p23 = _p20._0;
 						var content = _billstclair$elm_html_template$HtmlTemplate_Types$LookupTemplateAtom(
-							_elm_lang$core$Native_Utils.eq(_p23, 'index') ? _billstclair$xosbow$Xosbow$indexTemplate : _billstclair$xosbow$Xosbow$nodeTemplate);
-						var template = _billstclair$xosbow$Xosbow$pageTemplate;
+							_elm_lang$core$Native_Utils.eq(_p23, 'index') ? _billstclair$xosbow$Xossbow$indexTemplate : _billstclair$xosbow$Xossbow$nodeTemplate);
+						var template = _billstclair$xosbow$Xossbow$pageTemplate;
 						var loaders = A2(
 							_billstclair$elm_html_template$HtmlTemplate$insertFunctions,
 							{
@@ -16707,18 +16707,18 @@ var _billstclair$xosbow$Xosbow$view = function (model) {
 								_0: {
 									ctor: '_Tuple2',
 									_0: 'playDiv',
-									_1: _billstclair$xosbow$Xosbow$playDivFunction(model)
+									_1: _billstclair$xosbow$Xossbow$playDivFunction(model)
 								},
 								_1: {ctor: '[]'}
 							},
 							model.loaders);
 						var _p21 = A2(_billstclair$elm_html_template$HtmlTemplate$getTemplate, template, loaders);
 						if (_p21.ctor === 'Nothing') {
-							return A3(_billstclair$xosbow$Xosbow$dictsDiv, 'Template', template, loaders);
+							return A3(_billstclair$xosbow$Xossbow$dictsDiv, 'Template', template, loaders);
 						} else {
 							var _p22 = A2(_billstclair$elm_html_template$HtmlTemplate$getPage, _p23, loaders);
 							if (_p22.ctor === 'Nothing') {
-								return A3(_billstclair$xosbow$Xosbow$dictsDiv, 'Page', _p23, loaders);
+								return A3(_billstclair$xosbow$Xossbow$dictsDiv, 'Page', _p23, loaders);
 							} else {
 								var loaders2 = A2(
 									_billstclair$elm_html_template$HtmlTemplate$setAtoms,
@@ -16749,30 +16749,30 @@ var _billstclair$xosbow$Xosbow$view = function (model) {
 			}
 		});
 };
-var _billstclair$xosbow$Xosbow$GotoPage = function (a) {
+var _billstclair$xosbow$Xossbow$GotoPage = function (a) {
 	return {ctor: 'GotoPage', _0: a};
 };
-var _billstclair$xosbow$Xosbow$gotoPageFunction = F2(
+var _billstclair$xosbow$Xossbow$gotoPageFunction = F2(
 	function (args, _p24) {
 		var _p25 = args;
 		if (((_p25.ctor === '::') && (_p25._0.ctor === 'StringAtom')) && (_p25._1.ctor === '[]')) {
-			return _billstclair$xosbow$Xosbow$GotoPage(_p25._0._0);
+			return _billstclair$xosbow$Xossbow$GotoPage(_p25._0._0);
 		} else {
-			return _billstclair$xosbow$Xosbow$SetError(
+			return _billstclair$xosbow$Xossbow$SetError(
 				A2(
 					_elm_lang$core$Basics_ops['++'],
 					'Can\'t go to page: ',
 					_elm_lang$core$Basics$toString(args)));
 		}
 	});
-var _billstclair$xosbow$Xosbow$messages = {
+var _billstclair$xosbow$Xossbow$messages = {
 	ctor: '::',
-	_0: {ctor: '_Tuple2', _0: 'gotoPage', _1: _billstclair$xosbow$Xosbow$gotoPageFunction},
+	_0: {ctor: '_Tuple2', _0: 'gotoPage', _1: _billstclair$xosbow$Xossbow$gotoPageFunction},
 	_1: {ctor: '[]'}
 };
-var _billstclair$xosbow$Xosbow$pageLinkFunction = F2(
+var _billstclair$xosbow$Xossbow$pageLinkFunction = F2(
 	function (args, _p26) {
-		var _p27 = _billstclair$xosbow$Xosbow$normalizePageLinkArgs(args);
+		var _p27 = _billstclair$xosbow$Xossbow$normalizePageLinkArgs(args);
 		if ((_p27.ctor === 'Just') && (_p27._0.ctor === '_Tuple2')) {
 			return _billstclair$elm_html_template$HtmlTemplate_Types$HtmlAtom(
 				A2(
@@ -16783,7 +16783,7 @@ var _billstclair$xosbow$Xosbow$pageLinkFunction = F2(
 						_1: {
 							ctor: '::',
 							_0: _elm_lang$html$Html_Events$onClick(
-								_billstclair$xosbow$Xosbow$GotoPage(_p27._0._0)),
+								_billstclair$xosbow$Xossbow$GotoPage(_p27._0._0)),
 							_1: {ctor: '[]'}
 						}
 					},
@@ -16796,35 +16796,35 @@ var _billstclair$xosbow$Xosbow$pageLinkFunction = F2(
 			return A2(_billstclair$elm_html_template$HtmlTemplate$cantFuncall, 'pageLink', args);
 		}
 	});
-var _billstclair$xosbow$Xosbow$functions = {
+var _billstclair$xosbow$Xossbow$functions = {
 	ctor: '::',
-	_0: {ctor: '_Tuple2', _0: 'pageLink', _1: _billstclair$xosbow$Xosbow$pageLinkFunction},
+	_0: {ctor: '_Tuple2', _0: 'pageLink', _1: _billstclair$xosbow$Xossbow$pageLinkFunction},
 	_1: {
 		ctor: '::',
-		_0: {ctor: '_Tuple2', _0: 'emailLink', _1: _billstclair$xosbow$Xosbow$emailLinkFunction},
+		_0: {ctor: '_Tuple2', _0: 'emailLink', _1: _billstclair$xosbow$Xossbow$emailLinkFunction},
 		_1: {
 			ctor: '::',
-			_0: {ctor: '_Tuple2', _0: 'xosbow', _1: _billstclair$xosbow$Xosbow$xosbowFunction},
+			_0: {ctor: '_Tuple2', _0: 'xossbow', _1: _billstclair$xosbow$Xossbow$xossbowFunction},
 			_1: {ctor: '[]'}
 		}
 	}
 };
-var _billstclair$xosbow$Xosbow$PageFetchDone = F3(
+var _billstclair$xosbow$Xossbow$PageFetchDone = F3(
 	function (a, b, c) {
 		return {ctor: 'PageFetchDone', _0: a, _1: b, _2: c};
 	});
-var _billstclair$xosbow$Xosbow$fetchPage = F2(
+var _billstclair$xosbow$Xossbow$fetchPage = F2(
 	function (name, loaders) {
-		var url = _elm_lang$core$Native_Utils.eq(name, _billstclair$xosbow$Xosbow$settingsPageName) ? _billstclair$xosbow$Xosbow$templateFilename(_billstclair$xosbow$Xosbow$settingsFile) : A2(
+		var url = _elm_lang$core$Native_Utils.eq(name, _billstclair$xosbow$Xossbow$settingsPageName) ? _billstclair$xosbow$Xossbow$templateFilename(_billstclair$xosbow$Xossbow$settingsFile) : A2(
 			_elm_lang$core$Basics_ops['++'],
 			'page/',
-			_billstclair$xosbow$Xosbow$templateFilename(name));
+			_billstclair$xosbow$Xossbow$templateFilename(name));
 		return A2(
-			_billstclair$xosbow$Xosbow$fetchUrl,
+			_billstclair$xosbow$Xossbow$fetchUrl,
 			url,
-			A2(_billstclair$xosbow$Xosbow$PageFetchDone, name, loaders));
+			A2(_billstclair$xosbow$Xossbow$PageFetchDone, name, loaders));
 	});
-var _billstclair$xosbow$Xosbow$gotoPage = F2(
+var _billstclair$xosbow$Xossbow$gotoPage = F2(
 	function (page, model) {
 		var m = _elm_lang$core$Native_Utils.update(
 			model,
@@ -16836,23 +16836,23 @@ var _billstclair$xosbow$Xosbow$gotoPage = F2(
 			ctor: '_Tuple2',
 			_0: m,
 			_1: A2(
-				_billstclair$xosbow$Xosbow$fetchPage,
+				_billstclair$xosbow$Xossbow$fetchPage,
 				page,
 				_billstclair$elm_html_template$HtmlTemplate$clearPages(model.loaders))
 		};
 	});
-var _billstclair$xosbow$Xosbow$update = F2(
+var _billstclair$xosbow$Xossbow$update = F2(
 	function (msg, model) {
 		var _p28 = msg;
 		switch (_p28.ctor) {
 			case 'TemplateFetchDone':
-				return A4(_billstclair$xosbow$Xosbow$templateFetchDone, _p28._0, _p28._1, _p28._2, model);
+				return A4(_billstclair$xosbow$Xossbow$templateFetchDone, _p28._0, _p28._1, _p28._2, model);
 			case 'PageFetchDone':
-				return A4(_billstclair$xosbow$Xosbow$pageFetchDone, _p28._0, _p28._1, _p28._2, model);
+				return A4(_billstclair$xosbow$Xossbow$pageFetchDone, _p28._0, _p28._1, _p28._2, model);
 			case 'GotoPage':
-				return A2(_billstclair$xosbow$Xosbow$gotoPage, _p28._0, model);
+				return A2(_billstclair$xosbow$Xossbow$gotoPage, _p28._0, model);
 			case 'UpdatePlayString':
-				return A2(_billstclair$xosbow$Xosbow$updatePlayString, _p28._0, model);
+				return A2(_billstclair$xosbow$Xossbow$updatePlayString, _p28._0, model);
 			default:
 				return {
 					ctor: '_Tuple2',
@@ -16865,47 +16865,47 @@ var _billstclair$xosbow$Xosbow$update = F2(
 				};
 		}
 	});
-var _billstclair$xosbow$Xosbow$TemplateFetchDone = F3(
+var _billstclair$xosbow$Xossbow$TemplateFetchDone = F3(
 	function (a, b, c) {
 		return {ctor: 'TemplateFetchDone', _0: a, _1: b, _2: c};
 	});
-var _billstclair$xosbow$Xosbow$fetchTemplate = F2(
+var _billstclair$xosbow$Xossbow$fetchTemplate = F2(
 	function (name, loaders) {
-		var filename = _billstclair$xosbow$Xosbow$templateFilename(name);
+		var filename = _billstclair$xosbow$Xossbow$templateFilename(name);
 		var url = A2(
 			_elm_lang$core$Basics_ops['++'],
 			'template/',
 			A2(
 				_elm_lang$core$Basics_ops['++'],
-				_billstclair$xosbow$Xosbow$templateDir(loaders),
+				_billstclair$xosbow$Xossbow$templateDir(loaders),
 				A2(_elm_lang$core$Basics_ops['++'], '/', filename)));
 		return A2(
-			_billstclair$xosbow$Xosbow$fetchUrl,
+			_billstclair$xosbow$Xossbow$fetchUrl,
 			url,
-			A2(_billstclair$xosbow$Xosbow$TemplateFetchDone, name, loaders));
+			A2(_billstclair$xosbow$Xossbow$TemplateFetchDone, name, loaders));
 	});
-var _billstclair$xosbow$Xosbow$initialLoaders = A3(
+var _billstclair$xosbow$Xossbow$initialLoaders = A3(
 	_billstclair$elm_html_template$HtmlTemplate$addOutstandingPagesAndTemplates,
-	_billstclair$xosbow$Xosbow$initialPages,
-	_billstclair$xosbow$Xosbow$initialTemplates,
+	_billstclair$xosbow$Xossbow$initialPages,
+	_billstclair$xosbow$Xossbow$initialTemplates,
 	A2(
 		_billstclair$elm_html_template$HtmlTemplate$addPageProcessors,
-		_billstclair$xosbow$Xosbow$pageProcessors,
+		_billstclair$xosbow$Xossbow$pageProcessors,
 		A2(
 			_billstclair$elm_html_template$HtmlTemplate$insertMessages,
-			_billstclair$xosbow$Xosbow$messages,
+			_billstclair$xosbow$Xossbow$messages,
 			A2(
 				_billstclair$elm_html_template$HtmlTemplate$insertFunctions,
-				_billstclair$xosbow$Xosbow$functions,
-				A3(_billstclair$elm_html_template$HtmlTemplate$makeLoaders, _billstclair$xosbow$Xosbow$fetchTemplate, _billstclair$xosbow$Xosbow$fetchPage, _billstclair$xosbow$Xosbow$initialExtra)))));
-var _billstclair$xosbow$Xosbow$init = function () {
+				_billstclair$xosbow$Xossbow$functions,
+				A3(_billstclair$elm_html_template$HtmlTemplate$makeLoaders, _billstclair$xosbow$Xossbow$fetchTemplate, _billstclair$xosbow$Xossbow$fetchPage, _billstclair$xosbow$Xossbow$initialExtra)))));
+var _billstclair$xosbow$Xossbow$init = function () {
 	var _p29 = A2(
-		_billstclair$xosbow$Xosbow$updatePlayString,
+		_billstclair$xosbow$Xossbow$updatePlayString,
 		'\"Hello HtmlTemplate!\"',
 		{
-			loaders: _billstclair$xosbow$Xosbow$initialLoaders,
+			loaders: _billstclair$xosbow$Xossbow$initialLoaders,
 			page: _elm_lang$core$Maybe$Nothing,
-			pendingPage: _elm_lang$core$Maybe$Just(_billstclair$xosbow$Xosbow$indexPage),
+			pendingPage: _elm_lang$core$Maybe$Just(_billstclair$xosbow$Xossbow$indexPage),
 			playString: '',
 			parsedPlayString: '',
 			evaluatedPlayString: '',
@@ -16919,19 +16919,19 @@ var _billstclair$xosbow$Xosbow$init = function () {
 		_1: _billstclair$elm_html_template$HtmlTemplate$loadOutstandingPageOrTemplate(model.loaders)
 	};
 }();
-var _billstclair$xosbow$Xosbow$main = _elm_lang$html$Html$program(
+var _billstclair$xosbow$Xossbow$main = _elm_lang$html$Html$program(
 	{
-		init: _billstclair$xosbow$Xosbow$init,
-		view: _billstclair$xosbow$Xosbow$view,
-		update: _billstclair$xosbow$Xosbow$update,
+		init: _billstclair$xosbow$Xossbow$init,
+		view: _billstclair$xosbow$Xossbow$view,
+		update: _billstclair$xosbow$Xossbow$update,
 		subscriptions: function (x) {
 			return _elm_lang$core$Platform_Sub$none;
 		}
 	})();
 var Elm = {};
-Elm['Xosbow'] = Elm['Xosbow'] || {};
-if (typeof _billstclair$xosbow$Xosbow$main !== 'undefined') {
-    _billstclair$xosbow$Xosbow$main(Elm['Xosbow'], 'Xosbow', undefined);
+Elm['Xossbow'] = Elm['Xossbow'] || {};
+if (typeof _billstclair$xosbow$Xossbow$main !== 'undefined') {
+    _billstclair$xosbow$Xossbow$main(Elm['Xossbow'], 'Xossbow', undefined);
 }
 
 if (typeof define === "function" && define['amd'])
@@ -16963,4 +16963,4 @@ for (var publicModule in Elm)
 }
 
 }).call(this);
-</script></head><body><script type="text/javascript">Elm.Xosbow.fullscreen()</script></body></html>
+</script></head><body><script type="text/javascript">Elm.Xossbow.fullscreen()</script></body></html>

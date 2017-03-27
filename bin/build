@@ -1,4 +1,4 @@
 #!/bin/bash
 
-elm-make src/Xosbow.elm --output site/index.html
+elm-make src/Xossbow.elm --output site/index.html
 

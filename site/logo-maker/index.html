@@ -8801,7 +8801,7 @@ var _user$project$Crosswords$calculateCellNum = F3(
 		}
 	});
 var _user$project$Crosswords$initialCellSize = 100;
-var _user$project$Crosswords$defaultDims = {ctor: '_Tuple2', _0: 5, _1: 3};
+var _user$project$Crosswords$defaultDims = {ctor: '_Tuple2', _0: 4, _1: 2};
 var _user$project$Crosswords$log = _elm_lang$core$Debug$log;
 var _user$project$Crosswords$Cell = F3(
 	function (a, b, c) {
@@ -8965,10 +8965,7 @@ var _user$project$Crosswords$update = F2(
 							model,
 							{word: _p20._0});
 					case 'Fill':
-						return A2(
-							_user$project$Crosswords$fill,
-							_elm_lang$core$String$toUpper(model.word),
-							model);
+						return A2(_user$project$Crosswords$fill, model.word, model);
 					case 'Erase':
 						return _user$project$Crosswords$erase(model);
 					case 'ChangeStart':
@@ -9033,41 +9030,21 @@ var _user$project$Crosswords$initialFills = {
 	ctor: '::',
 	_0: A5(
 		_user$project$Crosswords$OneFill,
-		'XOS',
+		'Xoss',
 		{ctor: '_Tuple2', _0: 0, _1: 0},
-		_user$project$Crosswords$Down,
-		1,
-		0.2),
+		_user$project$Crosswords$Across,
+		0,
+		1.0),
 	_1: {
 		ctor: '::',
 		_0: A5(
 			_user$project$Crosswords$OneFill,
-			'BIG',
-			{ctor: '_Tuple2', _0: 2, _1: 0},
-			_user$project$Crosswords$Down,
-			2,
-			0.2),
-		_1: {
-			ctor: '::',
-			_0: A5(
-				_user$project$Crosswords$OneFill,
-				'WIN',
-				{ctor: '_Tuple2', _0: 4, _1: 0},
-				_user$project$Crosswords$Down,
-				3,
-				0.2),
-			_1: {
-				ctor: '::',
-				_0: A5(
-					_user$project$Crosswords$OneFill,
-					'BOW',
-					{ctor: '_Tuple2', _0: 2, _1: 0},
-					_user$project$Crosswords$Across,
-					2,
-					1.0),
-				_1: {ctor: '[]'}
-			}
-		}
+			'bow',
+			{ctor: '_Tuple2', _0: 1, _1: 1},
+			_user$project$Crosswords$Across,
+			0,
+			1.0),
+		_1: {ctor: '[]'}
 	}
 };
 var _user$project$Crosswords$emptyModel = {

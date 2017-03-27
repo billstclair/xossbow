@@ -1,19 +1,20 @@
-{ "title":"Hello XosBow",
-  "ps":[["This is the first post in the ",["#xosbow"]," blog."],
+{ "title":"Hello Xossbow",
+  "ps":[["This is the first post in the ",["#xossbow"]," blog."],
         ["I'm undecided about a logo. I currently have three ideas. If you have a preference, or another idea, please send email to ",["#emailLink","billstclair@gmail.com"]," Here are my ideas:"]
         ,
         ["ol",{},
          [["li",{},
-           ["A line-drawing of a crossbow. I was unable to find one I liked in an hour-long Google search, so I may need to commission it."]
+           [["#md",
+             "This crossword I made, with ",
+             ["a",{"href":"logo-maker/"},["`elm-crosswords`"]],
+             ". This is my current favorite.\n"],
+            {"src":"images/xossbow-logo-405x203.png"},
+            ["#md","\nHere's a tiny version of it (81x41):\n"],
+            {"src":"images/xossbow-logo-81x41.png"}
+           ]
           ],
           ["li",{},
-           [["#md",
-             "This silly crossword I made, with ",
-             ["a",{"href":"logo-maker/"},["`elm-crosswords`"]],
-             ", containing a really bad pun (\"2 Across: Bow\"):\n"
-            ],
-            {"src":"images/xosbow-logo-278x167.png"}
-           ]
+           ["A line-drawing of a crossbow. I was unable to find one I liked in an hour-long Google search, so I would likely need to commission it."]
           ],
           ["li",{},
            [ ["#md","The bottom half of da Vinci's ",
