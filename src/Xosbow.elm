@@ -119,6 +119,17 @@ pageLinkFunction args _ =
         _ ->
             cantFuncall "pageLink" args
 
+emailLinkFunction : List (Atom Msg) -> d -> Atom Msg
+emailLinkFunction args _ =
+    case args of
+        [ StringAtom email ] ->
+            HtmlAtom
+            <| a [ href <| "mailto:" ++ email
+                 ]
+                [ text email ]
+        _ ->
+            cantFuncall "mailLink" args
+
 normalizePageLinkArgs : List (Atom Msg) -> Maybe (String, String)
 normalizePageLinkArgs atom =
     case atom of
@@ -129,9 +140,17 @@ normalizePageLinkArgs atom =
         _ ->
             Nothing
 
+xosbowFunction : List (Atom Msg) -> d -> Atom Msg
+xosbowFunction args _ =
+    HtmlAtom
+    <| a [ href <| "/" ]
+        [ text "XosBow" ]
+
 functions : List (String, List (Atom Msg) -> Dicts Msg -> Atom Msg)
 functions =
     [ ( "pageLink", pageLinkFunction )
+    , ( "emailLink", emailLinkFunction )
+    , ( "xosbow", xosbowFunction )
     ]
 
 type alias Extra =

@@ -1,0 +1,32 @@
+{ "title":"Hello XosBow",
+  "ps":[["This is the first post in the ",["#xosbow"]," blog."],
+        ["I'm currently undecided about a logo. I currently have three ideas. If you have a preference, or another idea, please send email to ",["#emailLink","billstclair@gmail.com"]," Here are my ideas:"]
+        ,
+        ["ol",{},
+         [["li",{},
+           ["A line-drawing of a crossbow. I was unable to find one I liked in an hour-long Google search, so I may need to commission it."]
+          ],
+          ["li",{},
+           [["#md",
+             "This silly crossword I made, with ",
+             ["a",{"href":"logo-maker/"},["`elm-crosswords`"]],
+             ", containing a really bad pun (\"2 Across: Bow\"):\n"
+            ],
+            {"src":"images/xosbow-logo-278x167.png"}
+           ]
+          ],
+          ["li",{},
+           [ ["#md","The bottom half of da Vinci's ",
+              ["a",{"href":"images/davincis-giant-crossbow.jpg"},
+               ["famous notebook page"]
+              ],
+              " about a giant crossbow:\n"],
+             {"src":"images/davinci-233x171.png",
+              "width":"233","height":"171"
+             }
+           ]
+          ]
+         ]
+        ]
+       ]
+}
