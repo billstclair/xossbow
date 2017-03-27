@@ -14,7 +14,7 @@
        "The \"[Page Source]\" link at the bottom of each page shows the raw source for the current page.",
        "Clicking a page title on the index page will go to that page.",
        ["Source code is at: ",
-        ["a",{"href":"https://github.com/billstclair/elm-html-template"},
+        ["a",{"href":"https://github.com/billstclair/xossbow"},
          ["github.com/billstclair/xossbow"]
         ],
         "."
