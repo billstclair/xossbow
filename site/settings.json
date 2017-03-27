@@ -24,5 +24,8 @@
                ["#pageLink","stylesheet"]
               ]
              ],
-  "footer": ["Copyright ","$entities.copyright"," 2017 Bill St. Clair"]
+  "footer": ["Copyright ","$entities.copyright"," 2017 Bill St. Clair",
+             ["br",{},[]],
+             ["a",{"href":"/"},[{"src":"images/xossbow-logo-81x41.png","alt":"Xossbow Logo","title":"Made with Crossbow","width":81,"height":41}]]
+            ]
 }
