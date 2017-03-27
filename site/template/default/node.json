@@ -1,5 +1,5 @@
 [ "div", {},
-  [[ "h4", {},
+  [[ "h2", {},
      [["#pageLink","$node.page","$node.title"]
      ]
    ],

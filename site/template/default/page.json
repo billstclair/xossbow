@@ -2,7 +2,7 @@
  [["style",{"type":"text/css"},
    ["@@import \"style.css\""]
   ],
-  ["h2",{},
+  ["h1",{},
    [["#pageLink","index","$settings.siteName"]
    ]
   ],
