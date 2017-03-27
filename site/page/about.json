@@ -15,9 +15,9 @@
        "Clicking a page title on the index page will go to that page.",
        ["Source code is at: ",
         ["a",{"href":"https://github.com/billstclair/elm-html-template"},
-         ["github.com/billstclair/xosbow"]
+         ["github.com/billstclair/xossbow"]
         ],
-        " (yes, there's only one \"s\")."
+        "."
        ]
       ]
 }
