@@ -5,9 +5,9 @@
         ["ol",{},
          [["li",{},
            [["#md",
-             "This crossword I made, with ",
+             "I made the logo below, with ",
              ["a",{"href":"logo-maker/"},["`elm-crosswords`"]],
-             ". This is my current favorite.\n"],
+             ". It's my current favorite.\n"],
             {"src":"images/xossbow-logo-404x203.png"},
             ["#md","\nHere's a tiny version of it (81x41):\n"],
             {"src":"images/xossbow-logo-81x41.png"}
