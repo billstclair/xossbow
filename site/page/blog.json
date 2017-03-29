@@ -6,11 +6,15 @@
          [["li",{},
            [["#md",
              "I made the logo below, with ",
-             ["a",{"href":"logo-maker/"},["`elm-crosswords`"]],
+             ["a",{"href":"logo-maker/"},["elm-crosswords"]],
              ". It's my current favorite.\n"],
             {"src":"images/xossbow-logo-404x203.png"},
             ["#md","\nHere's a tiny version of it (81x41):\n"],
-            {"src":"images/xossbow-logo-81x41.png"}
+            {"src":"images/xossbow-logo-81x41.png"},
+            ["br",{},[]],
+            "There are more sizes in the ",
+            ["a",{"href":"images/"},["images"]],
+            " directory."
            ]
           ],
           ["li",{},
