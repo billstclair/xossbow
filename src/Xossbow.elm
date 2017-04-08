@@ -11,12 +11,18 @@ import HtmlTemplate exposing ( makeLoaders, insertFunctions, insertMessages
                              , getTemplate
                              , getAtom, setAtom, setAtoms, getDictsAtom
                              , clearPages
-                             , render
-                             , decodeAtom, eval, encodeAtom, customEncodeAtom
-                             , cantFuncall
+                             , render, eval, cantFuncall
                              )
 
 import HtmlTemplate.Types exposing ( Loaders, Atom(..), Dicts )
+
+import HtmlTemplate.EncodeDecode
+    exposing ( decodeAtom, encodeAtom, customEncodeAtom )
+
+import HtmlTemplate.PlayDiv exposing ( PlayState, emptyPlayState
+                                     , playDivFunction
+                                     , Update, playStringUpdate, updatePlayState
+                                     )
 
 import Html exposing ( Html, Attribute
                      , div, p, text, a, textarea, pre
@@ -39,10 +45,7 @@ type alias Model =
     { loaders: Loaders Msg Extra
     , page: Maybe String
     , pendingPage : Maybe String
-    , playString : String
-    , parsedPlayString : String
-    , evaluatedPlayString : String
-    , renderedPlayString : Html Msg
+    , playState : PlayState Msg
     , error : Maybe String
     }
 
@@ -182,14 +185,11 @@ initialLoaders =
 
 init : ( Model, Cmd Msg)
 init =
-    let (model, _) = updatePlayString "\"Hello HtmlTemplate!\""
+    let (model, _) = updatePlayString (playStringUpdate "\"Hello Xossbow!\"")
                      { loaders = initialLoaders
                      , page = Nothing
                      , pendingPage = Just indexPage
-                     , playString = ""
-                     , parsedPlayString = ""
-                     , evaluatedPlayString = ""
-                     , renderedPlayString = text ""
+                     , playState = emptyPlayState
                      , error = Nothing
                      }
     in
@@ -218,7 +218,7 @@ type Msg
     = TemplateFetchDone String (Loaders Msg Extra) (Result Http.Error String)
     | PageFetchDone String (Loaders Msg Extra) (Result Http.Error String)
     | GotoPage String
-    | UpdatePlayString String
+    | UpdatePlayState Update
     | SetError String
 
 fetchUrl : String -> ((Result Http.Error String) -> Msg) -> Cmd Msg
@@ -270,8 +270,8 @@ update msg model =
             pageFetchDone name loaders result model
         GotoPage page ->
             gotoPage page model
-        UpdatePlayString string ->
-            updatePlayString string model
+        UpdatePlayState update ->
+            updatePlayString update model
         SetError message ->
             ( { model | error = Just message }
             , Cmd.none
@@ -377,33 +377,14 @@ encode atom =
         else
             encodeAtom atom
 
-updatePlayString : String -> Model -> ( Model, Cmd Msg )
-updatePlayString string model =
-    let decode = decodeAtom string
-        decodeString = case decode of
-                           Err err ->
-                               "Parse error: " ++ err
-                           Ok atom ->
-                               encode atom
-        evalString = case decode of
-                         Err _ ->
-                             ""
-                         Ok atom ->
-                             encode <| eval atom <| getDicts model.loaders
-        rendered = case decode of
-                       Err _ ->
-                           text ""
-                       Ok atom ->
-                           render atom model.loaders
-    in
-        ( { model
-              | playString = string
-              , parsedPlayString = decodeString
-              , evaluatedPlayString = evalString
-              , renderedPlayString = rendered
-          }
-        , Cmd.none
-        )
+updatePlayString : Update -> Model -> ( Model, Cmd Msg )
+updatePlayString update model =
+    ( { model
+          | playState
+              = updatePlayState update model.loaders model.playState
+      }
+    , Cmd.none
+    )
 
 ---
 --- view
@@ -423,7 +404,11 @@ view model =
                   text ""
               Just page ->
                   let loaders = insertFunctions
-                                [ ( "playDiv", playDivFunction model ) ]
+                                [ ( "playDiv"
+                                  , playDivFunction
+                                      UpdatePlayState model.playState
+                                  )
+                                ]
                                 model.loaders                                      
                       template = pageTemplate
                       content = (LookupTemplateAtom
@@ -468,26 +453,3 @@ dictsDiv thing page loaders =
 br : Html Msg
 br =
     Html.br [] []
-
-playDiv : Model -> Html Msg
-playDiv model =
-    div []
-        [ textarea [ rows 8
-                   , cols 80
-                   , onInput UpdatePlayString
-                   ]
-              [ text model.playString ]
-        , p [] [ text "Parsed:" ]
-        , pre []
-            [ text model.parsedPlayString ]
-        , p [] [ text "Rendered:" ]
-        , div [ class "rendered" ]
-            [ model.renderedPlayString ]
-        , p [] [ text "Evaluated:" ]
-        , pre []
-            [ text model.evaluatedPlayString ]
-        ]
-
-playDivFunction : Model -> a -> b -> Atom Msg
-playDivFunction model _ _ =
-    HtmlAtom <| playDiv model
