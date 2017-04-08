@@ -12,6 +12,10 @@
 module Xossbow.Parsers exposing ( parseNode, nodeParser
                                 , parsePlist, plistParser
                                 , encodeNode, nodeToPlist, encodePlist
+                                , parseValue, valueParser
+                                , parseKeyColonValue, keyColonValueParser
+                                , escapeValue
+                                , testNode
                                 )
 
 import Xossbow.Types as Types
@@ -131,12 +135,12 @@ plistParser =
                    (\x y -> x)
                    (succeed (::)
                    |. ignore zeroOrMore isWhitespaceChar
-                   |= keyColonValue
+                   |= keyColonValueParser
                    |= Parser.repeat zeroOrMore
                         (succeed identity
                         |. ignore (Exactly 1) ((==) ',')
                         |. ignore zeroOrMore isWhitespaceChar
-                        |= keyColonValue
+                        |= keyColonValueParser
                         )
                    )
                    <| succeed ()
@@ -148,19 +152,49 @@ plistParser =
         )
         <| succeed ()
 
-keyColonValue : Parser (String, String)
-keyColonValue =
+escapedCharParser : Parser String -> Parser String
+escapedCharParser parser =
+    oneOf [ Parser.delayedCommit
+                (ignore (Exactly 1) ((==) '\\'))
+                <| keep (Exactly 1) (\_ -> True)
+          , parser
+          ]
+
+parseValue : String -> Result Error String
+parseValue string =
+    Parser.run valueParser string
+
+valueParser : Parser String
+valueParser =
+    succeed String.concat
+        |= repeat zeroOrMore
+           (escapedCharParser
+                <| keep (Exactly 1) <| ((/=) '"')
+           )
+
+parseKeyColonValue : String -> Result Error (String, String)
+parseKeyColonValue string =
+    Parser.run keyColonValueParser string
+
+keyColonValueParser : Parser (String, String)
+keyColonValueParser =
     succeed (,)
-        |= (keep oneOrMore <| nonWhitespaceOrChars [':', ',', '}'])
+        |= (keep oneOrMore <| nonWhitespaceOrChars [':'])
         |. ignore zeroOrMore isWhitespaceChar
         |. ignore (Exactly 1) ((==) ':')
         |. ignore zeroOrMore isWhitespaceChar
-        |= (keep oneOrMore <| nonWhitespaceOrChars [':', ',', '}'])
+        |. ignore (Exactly 1) ((==) '"')
+        |= valueParser
+        |. ignore (Exactly 1) ((==) '"')
         |. ignore zeroOrMore isWhitespaceChar
 
 isWhitespaceChar : Char -> Bool
 isWhitespaceChar char =
     List.member char [ ' ', '\n' ]
+
+notChars : List Char -> Char -> Bool
+notChars chars char =
+    not <| List.member char chars
 
 nonWhitespaceOrChars : List Char -> Char -> Bool
 nonWhitespaceOrChars chars char =
@@ -180,15 +214,38 @@ nodeToPlist node =
     , ( "contentType", contentTypeToString node.contentType )
     ]
 
+escapeValue : String -> String
+escapeValue string =
+    let chars = List.map String.fromChar <| String.toList string
+        escaped = List.map (\x -> if x == "\"" then "\\\"" else x)
+                  chars
+    in
+        String.concat escaped
+
 encodePlist : Plist -> String
 encodePlist plist =
     "{ "
     ++ (String.join "\n, "
-            <| List.map (\(k, v) -> k ++ ": " ++ v) plist
+            <| List.map (\(k, v) -> k ++ ": \"" ++ (escapeValue v) ++ "\"")
+                        plist
         )
-    ++ " }"
+    ++
+    " }"
 
 encodeNode : Node -> String
 encodeNode node =
     (encodePlist <| nodeToPlist node)
-    ++ "\n" ++ node.content
+    ++ "\n"
+    ++ node.content
+
+testNode : Node
+testNode =
+    { version = 1
+    , plist = []
+    , title = "The \"Boss\" from Hell"
+    , path = "the-boss-from-hell"
+    , author = "Joe"
+    , time = -400000
+    , contentType = Markdown
+    , content = "Something to chew on."
+    }
