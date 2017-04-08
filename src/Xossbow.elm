@@ -1,3 +1,14 @@
+----------------------------------------------------------------------
+--
+-- Xossbow.elm
+-- Blogging in Elm
+-- Copyright (c) 2017 Bill St. Clair <billstclair@gmail.com>
+-- Some rights reserved.
+-- Distributed under the MIT License
+-- See LICENSE.txt
+--
+----------------------------------------------------------------------
+
 module Xossbow exposing (..)
 
 import HtmlTemplate exposing ( makeLoaders, insertFunctions, insertMessages
