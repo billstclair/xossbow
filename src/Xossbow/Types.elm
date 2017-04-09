@@ -14,13 +14,15 @@ module Xossbow.Types exposing ( Node, nodeVersion, emptyNode
                               , Plist, get
                               )
 
+import HtmlTemplate.Types exposing ( Atom(..) )
+
 import Time exposing ( Time )
 
 nodeVersion : Int
 nodeVersion =
     1
 
-type alias Node =
+type alias Node msg =
     { version : Int
     , plist : Plist
     , title : String
@@ -28,10 +30,11 @@ type alias Node =
     , author : String
     , time : Time
     , contentType : ContentType
-    , content : String
+    , rawContent : String
+    , content : Atom msg
     }
 
-emptyNode : Node
+emptyNode : Node msg
 emptyNode =
     { version = nodeVersion
     , plist = []
@@ -40,7 +43,8 @@ emptyNode =
     , author = "Bill St. Clair"
     , time = -433540800000 + (8 * 3600 * 1000)
     , contentType = Markdown
-    , content = "Hello, Xossbow!"
+    , rawContent = "Hello, Xossbow!"
+    , content = ListAtom []
     }
 
 type ContentType

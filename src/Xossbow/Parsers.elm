@@ -36,15 +36,15 @@ import Parser exposing ( Parser, Error, Count(..)
 --- Parsers
 ---
 
-parseNode : String -> Result Error Node
+parseNode : String -> Result Error (Node msg)
 parseNode string =
     Parser.run nodeParser string
 
-makeNode : Plist -> String -> Node
-makeNode plist content =
+makeNode : Plist -> String -> Node msg
+makeNode plist rawContent =
     let node = { emptyNode
                    | plist = plist
-                   , content = content
+                   , rawContent = rawContent
                }
     in
         setTitle (plist, node)
@@ -70,7 +70,7 @@ contentTypeToString contentType =
         Code -> "Code"
         Text -> "Text"
 
-setField : String -> (Plist, Node) -> ( String -> Node -> Node)-> (Plist, Node)
+setField : String -> (Plist, Node msg) -> ( String -> Node msg -> Node msg)-> (Plist, Node msg)
 setField field (plist, node) setter =
     case Types.get field plist of
         Nothing ->
@@ -78,19 +78,19 @@ setField field (plist, node) setter =
         Just value ->
             (plist, setter value node)
 
-setTitle : (Plist, Node) -> (Plist, Node)
+setTitle : (Plist, Node msg) -> (Plist, Node msg)
 setTitle pn =
     setField "title" pn (\value node -> { node | title = value })
 
-setPath : (Plist, Node) -> (Plist, Node)
+setPath : (Plist, Node msg) -> (Plist, Node msg)
 setPath pn =
     setField "path" pn (\value node -> { node | path = value })
 
-setAuthor : (Plist, Node) -> (Plist, Node)
+setAuthor : (Plist, Node msg) -> (Plist, Node msg)
 setAuthor pn =
     setField "author" pn (\value node -> { node | author = value })
 
-setTime : (Plist, Node) -> (Plist, Node)
+setTime : (Plist, Node msg) -> (Plist, Node msg)
 setTime pn =
     setField "time" pn
         (\value node ->
@@ -101,7 +101,7 @@ setTime pn =
                      { node | time = int }
         )
 
-setContentType : (Plist, Node) -> (Plist, Node)
+setContentType : (Plist, Node msg) -> (Plist, Node msg)
 setContentType pn =
     setField "contentType" pn
         (\value node ->
@@ -110,7 +110,7 @@ setContentType pn =
              }
         )
 
-nodeParser : Parser Node
+nodeParser : Parser (Node msg)
 nodeParser =
     succeed makeNode
         |= plistParser
@@ -204,7 +204,7 @@ nonWhitespaceOrChars chars char =
 --- Encoders
 ---
 
-nodeToPlist : Node -> Plist
+nodeToPlist : Node msg -> Plist
 nodeToPlist node =
     [ ( "version", toString node.version )
     , ( "title", node.title )
@@ -232,20 +232,28 @@ encodePlist plist =
     ++
     " }"
 
-encodeNode : Node -> String
+encodeNode : Node msg -> String
 encodeNode node =
     (encodePlist <| nodeToPlist node)
     ++ "\n"
-    ++ node.content
+    ++ node.rawContent
 
-testNode : Node
-testNode =
+testNode1 : Node msg
+testNode1 =
     { version = 1
     , plist = []
-    , title = "The \"Boss\" from Hell"
-    , path = "the-boss-from-hell"
+    , title = "I \"Loved\" Led Zeppelin!"
+    , path = "i-loved-led-zeppelin"
     , author = "Joe"
     , time = -400000
     , contentType = Markdown
-    , content = "Something to chew on."
+    , rawContent = "I saw Led Zeppelin in 1973. Yow! They rocked!"
+    , content = emptyNode.content
     }
+
+testNode : Node msg
+testNode =
+    encodeNode testNode1
+        |> parseNode
+        |> Result.withDefault emptyNode
+
