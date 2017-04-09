@@ -1,0 +1,14 @@
+{ version: "1"
+, comment: ""
+, pageTemplate: "page"
+, nodeTemplate: "node"
+, title: "Page Source"
+, path: "refererjson"
+, author: "Bill St. Clair"
+, time: "-433512000000"
+, contentType: "Markdown"
+}
+
+Page: [["#pageLink","$referer"]]
+
+[["iframe",{"src":["#append","page/","$referer",".txt"]},[] ]]

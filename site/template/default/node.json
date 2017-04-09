@@ -1,9 +1,9 @@
 [ "div", {},
   [[ "h2", {},
-     [["#pageLink","$node.page","$node.title"]
+     [["#pageLink","$node.path","$node.title"]
      ]
    ],
-   [ "#apply","ps","$node.ps" ],
-   ["#if",["#==","$page","$node.page"],"?refererlink"]
+   ["div",{"class":"node-content"},"$node.content"],
+   ["#if",["#==","$page","$node.path"],"?refererlink"]
   ]
 ]

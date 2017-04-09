@@ -47,7 +47,10 @@ makeNode plist rawContent =
                    , rawContent = rawContent
                }
     in
-        setTitle (plist, node)
+        setComment (plist, node)
+        |> setPageTemplate
+        |> setNodeTemplate
+        |> setTitle
         |> setPath
         |> setAuthor
         |> setTime
@@ -77,6 +80,18 @@ setField field (plist, node) setter =
             (plist, node)
         Just value ->
             (plist, setter value node)
+
+setComment : (Plist, Node msg) -> (Plist, Node msg)
+setComment pn =
+    setField "comment" pn (\value node -> { node | comment = value })
+
+setPageTemplate : (Plist, Node msg) -> (Plist, Node msg)
+setPageTemplate pn =
+    setField "pageTemplate" pn (\value node -> { node | pageTemplate = value })
+
+setNodeTemplate : (Plist, Node msg) -> (Plist, Node msg)
+setNodeTemplate pn =
+    setField "nodeTemplate" pn (\value node -> { node | nodeTemplate = value })
 
 setTitle : (Plist, Node msg) -> (Plist, Node msg)
 setTitle pn =
@@ -179,7 +194,7 @@ parseKeyColonValue string =
 keyColonValueParser : Parser (String, String)
 keyColonValueParser =
     succeed (,)
-        |= (keep oneOrMore <| nonWhitespaceOrChars [':'])
+        |= (keep oneOrMore <| nonWhitespaceOrChars [':', ',', '}', '"'])
         |. ignore zeroOrMore isWhitespaceChar
         |. ignore (Exactly 1) ((==) ':')
         |. ignore zeroOrMore isWhitespaceChar
@@ -207,6 +222,9 @@ nonWhitespaceOrChars chars char =
 nodeToPlist : Node msg -> Plist
 nodeToPlist node =
     [ ( "version", toString node.version )
+    , ( "comment", node.comment )
+    , ( "pageTemplate", node.pageTemplate )
+    , ( "nodeTemplate", node.nodeTemplate )
     , ( "title", node.title )
     , ( "path", node.path )
     , ( "author", node.author )
@@ -240,15 +258,11 @@ encodeNode node =
 
 testNode1 : Node msg
 testNode1 =
-    { version = 1
-    , plist = []
-    , title = "I \"Loved\" Led Zeppelin!"
-    , path = "i-loved-led-zeppelin"
-    , author = "Joe"
-    , time = -400000
-    , contentType = Markdown
-    , rawContent = "I saw Led Zeppelin in 1973. Yow! They rocked!"
-    , content = emptyNode.content
+    { emptyNode
+        | title = "I \"Loved\" Led Zeppelin!"
+        , path = "i-loved-led-zeppelin"
+        , author = "Joe"
+        , rawContent = "I saw Led Zeppelin in 1973. Yow! They rocked!"
     }
 
 testNode : Node msg

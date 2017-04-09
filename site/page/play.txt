@@ -1,0 +1,15 @@
+{ version: "1"
+, comment: ""
+, pageTemplate: "page"
+, nodeTemplate: "node"
+, title: "Play"
+, path: "play"
+, author: "Bill St. Clair"
+, time: "-433512000000"
+, contentType: "Markdown" }
+
+Type JSON into the box below to see how it parses and evaluates.
+
+[["#playDiv"]]
+
+

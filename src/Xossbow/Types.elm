@@ -24,7 +24,9 @@ nodeVersion =
 
 type alias Node msg =
     { version : Int
-    , plist : Plist
+    , comment : String
+    , pageTemplate : String
+    , nodeTemplate : String
     , title : String
     , path : String
     , author : String
@@ -32,12 +34,15 @@ type alias Node msg =
     , contentType : ContentType
     , rawContent : String
     , content : Atom msg
+    , plist : Plist
     }
 
 emptyNode : Node msg
 emptyNode =
     { version = nodeVersion
-    , plist = []
+    , comment = ""
+    , pageTemplate = "page"
+    , nodeTemplate = "node"
     , title = "Hello"
     , path = "hello"
     , author = "Bill St. Clair"
@@ -45,6 +50,7 @@ emptyNode =
     , contentType = Markdown
     , rawContent = "Hello, Xossbow!"
     , content = ListAtom []
+    , plist = []
     }
 
 type ContentType

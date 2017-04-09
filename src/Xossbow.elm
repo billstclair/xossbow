@@ -11,11 +11,15 @@
 
 module Xossbow exposing (..)
 
+import Xossbow.Types exposing ( Node, ContentType(..), emptyNode )
+import Xossbow.Parsers exposing ( parseNode )
+
 import HtmlTemplate exposing ( makeLoaders, insertFunctions, insertMessages
                              , addPageProcessors
                              , getExtra, setExtra, getDicts
                              , addOutstandingPagesAndTemplates
-                             , loadPage, receivePage, loadTemplate, receiveTemplate
+                             , loadPage, receiveCustomPage
+                             , loadTemplate, receiveTemplate
                              , loadOutstandingPageOrTemplate
                              , maybeLoadOutstandingPageOrTemplate
                              , getPage, setPage, removePage
@@ -30,6 +34,10 @@ import HtmlTemplate.Types exposing ( Loaders, Atom(..), Dicts )
 import HtmlTemplate.EncodeDecode
     exposing ( decodeAtom, encodeAtom, customEncodeAtom )
 
+import HtmlTemplate.Markdown as Markdown
+
+import HtmlTemplate.Utility as Utility exposing ( mergeStrings )
+
 import HtmlTemplate.PlayDiv exposing ( PlayState, emptyPlayState
                                      , playDivFunction
                                      , Update, playStringUpdate, updatePlayState
@@ -41,6 +49,7 @@ import Html exposing ( Html, Attribute
 import Html.Attributes as Attributes exposing ( style, href, rows, cols, class )
 import Html.Events exposing ( onClick, onInput )
 import Http
+import Date
 
 log = Debug.log
 
@@ -107,6 +116,14 @@ templateFileType =
 templateFilename : String -> String
 templateFilename name =
     name ++ templateFileType
+
+pageFileType : String
+pageFileType =
+    ".txt"
+
+pageFilename : String -> String
+pageFilename name =
+    name ++ pageFileType
 
 gotoPageFunction : List (Atom Msg) -> d -> Msg
 gotoPageFunction args _ =
@@ -190,6 +207,10 @@ initialLoaders =
     |> addPageProcessors pageProcessors
     |> addOutstandingPagesAndTemplates initialPages initialTemplates
 
+initialDicts : Dicts Msg
+initialDicts =
+    getDicts initialLoaders
+
 ---
 --- init
 ---
@@ -264,7 +285,7 @@ fetchPage name loaders =
     let url = if name == settingsPageName then
                   templateFilename settingsFile
               else
-                  "page/" ++ (templateFilename name)
+                  "page/" ++ (pageFilename name)
     in
         fetchUrl url <| PageFetchDone name loaders
 
@@ -351,6 +372,68 @@ continueLoading loaders model =
                 , Cmd.none
                 )
 
+parsePage : String -> String -> Result String (Atom Msg)
+parsePage page text =
+    if page == settingsPageName then
+        decodeAtom text
+    else
+        let node = case parseNode text of
+                       Err err ->
+                           { emptyNode
+                               | title = "Error parsing page: " ++ page
+                               , path = page
+                               , contentType = Text
+                               , rawContent = text
+                           }
+                       Ok n ->
+                           n
+        in
+            nodeToAtom node
+
+parseNodeContent : Node msg -> Result String (Atom msg)
+parseNodeContent node =
+    case node.contentType of
+        Json ->
+            decodeAtom node.rawContent
+        Markdown ->
+            Markdown.run node.rawContent
+                |> Utility.mergeStrings
+                |> Ok
+        Text ->
+            Ok ( StringAtom node.rawContent )
+        Code ->
+            Ok ( RecordAtom
+                     { tag = "pre"
+                     , attributes = []
+                     , body = [ StringAtom node.rawContent ]
+                     }
+               )
+
+nodeToAtom : Node msg -> Result String (Atom msg)
+nodeToAtom node =
+    case parseNodeContent node of
+        Err s as err ->
+            err
+        Ok atom ->
+            let plist : List (String, Atom msg)
+                plist = [ ("title", StringAtom node.title)
+                        , ("path", StringAtom node.path)
+                        , ("author", StringAtom node.author)
+                        , ("time", FloatAtom node.time)
+                        -- This should be formatted according to a setting
+                        -- using justinmimbs/elm-date-extra
+                        , ("date", StringAtom <| toString <| Date.fromTime node.time)
+                        , ("content", atom)
+                        ]            
+            in
+                Ok
+                <| FuncallAtom
+                    { function = "let"
+                    , args = [ PListAtom [ ("node", PListAtom plist) ]
+                             , LookupTemplateAtom node.nodeTemplate
+                             ]
+                    }
+
 pageFetchDone : String -> Loaders Msg Extra -> Result Http.Error String -> Model -> ( Model, Cmd Msg )
 pageFetchDone name loaders result model =
     case result of
@@ -362,13 +445,13 @@ pageFetchDone name loaders result model =
               }
             , Cmd.none
             )
-        Ok json ->
-            case receivePage name json loaders of
+        Ok text ->
+            case receiveCustomPage (parsePage name) name text loaders of
                 Err msg ->
                     ( { model
-                            | error =
-                                Just
-                                <| ("While loading page \"" ++ name ++ "\": " ++ msg)
+                          | error =
+                            Just
+                            <| ("While loading page \"" ++ name ++ "\": " ++ msg)
                       }
                     , Cmd.none
                     )
@@ -422,12 +505,7 @@ view model =
                                 ]
                                 model.loaders                                      
                       template = pageTemplate
-                      content = (LookupTemplateAtom
-                                     <| if page == "index" then
-                                            indexTemplate
-                                        else
-                                            nodeTemplate
-                                )
+                      content = LookupPageAtom page
                   in
                       case getTemplate template loaders of
                           Nothing ->
@@ -438,8 +516,7 @@ view model =
                                       dictsDiv "Page" page loaders
                                   Just atom ->
                                       let loaders2 = setAtoms
-                                                     [ ("node", atom)
-                                                     , ("content", content)
+                                                     [ ("content", content)
                                                      , ("page", StringAtom page)
                                                      ]
                                                      loaders

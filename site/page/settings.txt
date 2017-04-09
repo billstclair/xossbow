@@ -1,0 +1,12 @@
+{ version: "1"
+, comment: ""
+, pageTemplate: "page"
+, nodeTemplate: "node"
+, title: "Settings"
+, path: "settings"
+, author: "Bill St. Clair"
+, time: "-433512000000"
+, contentType: "Markdown"
+}
+
+[["iframe",{"src":"settings.json"},[] ]]

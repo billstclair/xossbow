@@ -1,0 +1,12 @@
+{ version: "1"
+, comment: ""
+, pageTemplate: "page"
+, nodeTemplate: "node"
+, title: "Stylesheet"
+, path: "stylesheet"
+, author: "Bill St. Clair"
+, time: "-433512000000"
+, contentType: "Markdown"
+}
+
+[["iframe",{"src":"style.css"},[] ]]

@@ -1,0 +1,25 @@
+{ version: "1"
+, comment: ""
+, pageTemplate: "page"
+, nodeTemplate: "node"
+, title: "Hello Xossbow"
+, path: "blog"
+, author: "Bill St. Clair"
+, time: "-433512000000"
+, contentType: "Markdown"
+}
+
+This is the first post in the [["#xossbow"]] blog.
+
+I'm undecided about a logo. I currently have three ideas. If you have a preference, or another idea, please send email to <Xossbow@gmail.com>. Here are my ideas:
+
+1. I made the logo below, with [elm-crosswords](logo-maker/). It's my current favorite.  
+![Xossbow Logo](images/xossbow-logo-404x203.png)  
+Here's a tiny version of it (81x41):  
+![Tiny Xossbow logo](images/xossbow-logo-81x41.png)  
+There are more sizes in the [images](images/) directory.
+
+2. A line-drawing of a crossbow. I was unable to find one I liked in an hour-long Google search, so I would likely need to commission it."
+
+3. The bottom half of da Vinci's [famous notebook page](images/davincis-giant-crossbow.jpg") about a giant crossbow:  
+![DaVinci's giant crossbow](images/davinci-233x171.png)

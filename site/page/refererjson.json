@@ -1,5 +1,0 @@
-{ "title": "Page Source",
-  "ps" : [["Page: ",["#pageLink","$referer"]],
-          ["iframe",{"src":["#append","page/","$referer",".json"]},[]]
-         ]
-}
