@@ -246,14 +246,23 @@ encodePlist plist =
     ++ (String.join "\n, "
             <| List.map (\(k, v) -> k ++ ": \"" ++ (escapeValue v) ++ "\"")
                         plist
-        )
+       )
     ++
-    " }"
+    "\n }"
+
+removePlistDefaults : Plist -> Plist -> Plist
+removePlistDefaults plist defaults =
+    List.filter (\cell -> not <| List.member cell defaults) plist
+
+emptyPlist : Plist
+emptyPlist =
+    nodeToPlist emptyNode
 
 encodeNode : Node msg -> String
 encodeNode node =
-    (encodePlist <| nodeToPlist node)
+    (encodePlist <| removePlistDefaults (nodeToPlist node) emptyPlist )
     ++ "\n"
+    ++ (if "\n" == (String.left 1 node.rawContent) then "" else "\n")
     ++ node.rawContent
 
 testNode1 : Node msg

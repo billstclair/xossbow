@@ -43,12 +43,12 @@ emptyNode =
     , comment = ""
     , pageTemplate = "page"
     , nodeTemplate = "node"
-    , title = "Hello"
-    , path = "hello"
-    , author = "Bill St. Clair"
+    , title = "Untitled"
+    , path = "nada"
+    , author = "Unknown"
     , time = -433540800000 + (8 * 3600 * 1000)
     , contentType = Markdown
-    , rawContent = "Hello, Xossbow!"
+    , rawContent = "You were expecting maybe a treatise?"
     , content = ListAtom []
     , plist = []
     }

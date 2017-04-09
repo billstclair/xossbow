@@ -65,7 +65,7 @@ type alias Model =
     { loaders: Loaders Msg Extra
     , page: Maybe String
     , pendingPage : Maybe String
-    , playState : PlayState Msg
+    , playState : Maybe (PlayState Msg)
     , error : Maybe String
     }
 
@@ -217,13 +217,12 @@ initialDicts =
 
 init : ( Model, Cmd Msg)
 init =
-    let (model, _) = updatePlayString (playStringUpdate "\"Hello Xossbow!\"")
-                     { loaders = initialLoaders
-                     , page = Nothing
-                     , pendingPage = Just indexPage
-                     , playState = emptyPlayState
-                     , error = Nothing
-                     }
+    let model = { loaders = initialLoaders
+                , page = Nothing
+                , pendingPage = Just indexPage
+                , playState = Nothing
+                , error = Nothing
+                }
     in
         ( model
         , loadOutstandingPageOrTemplate model.loaders
@@ -388,7 +387,7 @@ parsePage page text =
                        Ok n ->
                            n
         in
-            nodeToAtom node
+            nodeToAtom { node | path = page }
 
 parseNodeContent : Node msg -> Result String (Atom msg)
 parseNodeContent node =
@@ -471,11 +470,23 @@ encode atom =
         else
             encodeAtom atom
 
+getPlayState : Model -> PlayState Msg
+getPlayState model =
+    case model.playState of
+        Nothing ->
+            updatePlayState
+                (playStringUpdate "\"Hello Xossbow!\"")
+                model.loaders
+                emptyPlayState
+        Just playState ->
+            playState                     
+
 updatePlayString : Update -> Model -> ( Model, Cmd Msg )
 updatePlayString update model =
     ( { model
           | playState
-              = updatePlayState update model.loaders model.playState
+              = Just
+                <| updatePlayState update model.loaders <| getPlayState model
       }
     , Cmd.none
     )
@@ -500,7 +511,7 @@ view model =
                   let loaders = insertFunctions
                                 [ ( "playDiv"
                                   , playDivFunction
-                                      UpdatePlayState model.playState
+                                      UpdatePlayState <| getPlayState model
                                   )
                                 ]
                                 model.loaders                                      

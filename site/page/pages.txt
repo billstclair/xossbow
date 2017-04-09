@@ -1,12 +1,6 @@
-{ version: "1"
-, comment: ""
-, pageTemplate: "page"
-, nodeTemplate: "node"
-, title: "Pages"
-, path: "pages"
+{ title: "Pages"
 , author: "Bill St. Clair"
 , time: "-433512000000"
-, contentType: "Markdown"
 }
 
 [["iframe",{"src":"page/"},[] ]]

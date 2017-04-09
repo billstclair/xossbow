@@ -1,11 +1,8 @@
-{ version: "1"
-, comment: ""
-, pageTemplate: "page"
-, nodeTemplate: "index"
+{ nodeTemplate: "index"
 , title: "Index"
-, path: "index"
 , author: "Bill St. Clair"
 , time: "-433512000000"
-, contentType: "Json" }
+, contentType: "Json"
+}
 
 ["@blog"]
