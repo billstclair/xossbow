@@ -7,7 +7,7 @@ Xossbow is pronounced "Crossbow".
 
 Elm is a good wood for making longbows. A crossbow is a particularly powerful bow. Xossbow is a particularly powerful blogging framework, made with [Elm](http://elm-lang.org/) and [HtmlTemplate](http://package.elm-lang.org/packages/billstclair/elm-html-template/latest).
 
-Page content and templates are currently written in JSON. I'm planning to soon add Markdown for simple text pages and a Lisp-like syntax for code.
+Page templates are written in JSON. Content may be written in JSON, Markdown, or plain text. Plain text may be wrapped by your browser, or displayed as fixed-width code. There will soon be editing forms for the [["#pageLink","settings"]] and [["#pageLink","pages"]].
 
 The "index" link in the sidebar goes to the index page, as does clicking on the site name at the top of the page.
 

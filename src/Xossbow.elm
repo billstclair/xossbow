@@ -50,22 +50,29 @@ import Html.Attributes as Attributes exposing ( style, href, rows, cols, class )
 import Html.Events exposing ( onClick, onInput )
 import Http
 import Date
+import Time exposing ( Time, second )
+
+import Navigation exposing ( Location )
+import UrlParser exposing ( Parser, QueryParser, stringParam, parseHash )
 
 log = Debug.log
 
 main =
-    Html.program
+    Navigation.program
+        Navigate
         { init = init
-        , view = view
         , update = update
-        , subscriptions = (\x -> Sub.none)
+        , view = view
+        , subscriptions = (\x -> Time.every second Tick)
         }
 
 type alias Model =
     { loaders: Loaders Msg Extra
+    , initialLocation : Maybe Location
     , page: Maybe String
     , pendingPage : Maybe String
     , playState : Maybe (PlayState Msg)
+    , time : Time
     , error : Maybe String
     }
 
@@ -215,12 +222,14 @@ initialDicts =
 --- init
 ---
 
-init : ( Model, Cmd Msg)
-init =
+init : Location -> ( Model, Cmd Msg)
+init location =
     let model = { loaders = initialLoaders
+                , initialLocation = Just location
                 , page = Nothing
                 , pendingPage = Just indexPage
                 , playState = Nothing
+                , time = 0
                 , error = Nothing
                 }
     in
@@ -251,6 +260,8 @@ type Msg
     | GotoPage String
     | UpdatePlayState Update
     | SetError String
+    | Navigate Location
+    | Tick Time
 
 fetchUrl : String -> ((Result Http.Error String) -> Msg) -> Cmd Msg
 fetchUrl url wrapper =
@@ -307,6 +318,18 @@ update msg model =
             ( { model | error = Just message }
             , Cmd.none
             )
+        Tick time ->
+            ( { model | time = time }
+            , Cmd.none
+            )
+        Navigate location ->
+            navigate location model
+
+navigate : Location -> Model -> ( Model, Cmd Msg )
+navigate location model =
+    ( model
+    , Cmd.none
+    )    
 
 gotoPage : String -> Model -> ( Model, Cmd Msg )
 gotoPage page model =
