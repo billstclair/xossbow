@@ -15,5 +15,5 @@ There are more sizes in the [images](images/) directory.
 
 2. A line-drawing of a crossbow. I was unable to find one I liked in an hour-long Google search, so I would likely need to commission it."
 
-3. The bottom half of da Vinci's [famous notebook page](images/davincis-giant-crossbow.jpg") about a giant crossbow:  
+3. The bottom half of da Vinci's [famous notebook page](images/davincis-giant-crossbow.jpg) about a giant crossbow:  
 ![DaVinci's giant crossbow](images/davinci-233x171.png)
