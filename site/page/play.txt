@@ -3,7 +3,7 @@
 , time: "-433512000000"
 }
 
-Type JSON or Markdown into the box below to see how it parses and evaluates. Anything not beginning with a left square bracket ("[") will be parsed as Markdown.
+Type [JSON](https://github.com/billstclair/elm-html-template/blob/master/JSON.md) or [Markdown](https://github.com/billstclair/elm-html-template/blob/master/Markdown.md) into the box below to see how it parses and evaluates. Anything not beginning with a left square bracket ("[") will be parsed as Markdown.
 
 [["#playDiv"]]
 

@@ -68,7 +68,7 @@ main =
 
 type alias Model =
     { loaders: Loaders Msg Extra
-    , initialLocation : Maybe Location
+    , location : Location
     , page: Maybe String
     , pendingPage : Maybe String
     , playState : Maybe (PlayState Msg)
@@ -150,8 +150,8 @@ pageLinkFunction args _ =
     case normalizePageLinkArgs args of
         Just ( page, title ) ->
             HtmlAtom
-            <| a [ href "#"
-                 , onClick <| GotoPage page
+            <| a [ href <| "#" ++ page
+                 --, onClick <| GotoPage page
                  ]
                 [ text title ]
         _ ->
@@ -225,9 +225,9 @@ initialDicts =
 init : Location -> ( Model, Cmd Msg)
 init location =
     let model = { loaders = initialLoaders
-                , initialLocation = Just location
+                , location = location
                 , page = Nothing
-                , pendingPage = Just indexPage
+                , pendingPage = Nothing
                 , playState = Nothing
                 , time = 0
                 , error = Nothing
@@ -325,11 +325,39 @@ update msg model =
         Navigate location ->
             navigate location model
 
+pageFromLocation : Location -> String
+pageFromLocation location =
+    let hash = location.hash
+        sansSharp = if (String.left 1 hash) == "#" then
+                        String.dropLeft 1 hash
+                    else
+                        hash
+    in
+        case String.split "." sansSharp of
+            [] ->
+                "index"
+            res :: _ ->
+                if res == "" then
+                    "index"
+                else
+                    res
+
 navigate : Location -> Model -> ( Model, Cmd Msg )
 navigate location model =
-    ( model
-    , Cmd.none
-    )    
+    let newPage = pageFromLocation location
+        mod = { model | location = location }
+    in
+        if case model.page of
+               Nothing ->
+                   True
+               Just page ->
+                   page /= newPage
+        then
+            gotoPage newPage mod
+        else
+            ( mod
+            , Cmd.none
+            )
 
 gotoPage : String -> Model -> ( Model, Cmd Msg )
 gotoPage page model =
@@ -376,11 +404,12 @@ continueLoading loaders model =
         Nothing ->
             let m = { model | loaders = loaders }
             in
-                ( case m.pendingPage of
-                      Nothing ->
-                          m
-                      Just page ->
-                          { m |
+                case m.pendingPage of
+                    Nothing ->
+                        -- This happens at startup
+                        gotoPage (pageFromLocation m.location) m
+                    Just page ->
+                        ( { m |
                             page = Just page
                           , pendingPage = Nothing
                           , loaders = case m.page of
@@ -391,8 +420,8 @@ continueLoading loaders model =
                                                 (StringAtom referer)
                                                 loaders
                           }
-                , Cmd.none
-                )
+                        , Cmd.none
+                        )
 
 parsePage : String -> String -> Result String (Atom Msg)
 parsePage page text =
