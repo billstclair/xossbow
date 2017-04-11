@@ -53,7 +53,6 @@ import Date
 import Time exposing ( Time, second )
 
 import Navigation exposing ( Location )
-import UrlParser exposing ( Parser, QueryParser, stringParam, parseHash )
 
 log = Debug.log
 
