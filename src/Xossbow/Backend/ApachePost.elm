@@ -31,10 +31,10 @@ operate wrapper operation =
     case operation of
         Authorize authorization ->
             authorize operation wrapper authorization
-        UploadFile authrorization uploadType path content ->
-            uploadFile operation wrapper authrorization uploadType path content
-        DeleteFile authrorization uploadType path ->
-            deleteFile operation wrapper authrorization uploadType path
+        UploadFile authorization uploadType path content ->
+            uploadFile operation wrapper authorization uploadType path content
+        DeleteFile authorization uploadType path ->
+            deleteFile operation wrapper authorization uploadType path
 
 helloScript : String
 helloScript =
@@ -52,10 +52,10 @@ authorizationHeader { username, password } =
                        )
 
 httpGet : Authorization -> String -> Http.Request String
-httpGet authrorization url =
+httpGet authorization url =
     Http.request
         { method = "GET"
-        , headers = [ authorizationHeader authrorization ]
+        , headers = [ authorizationHeader authorization ]
         , url = url
         , body = Http.emptyBody
         , expect = Http.expectString
@@ -82,10 +82,10 @@ authorize operation wrapper authorization =
     
 
 uploadFile : BackendOperation -> BackendWrapper msg -> Authorization -> UploadType -> String -> String -> Cmd msg
-uploadFile operation wrapper authrorization uploadType path content =
+uploadFile operation wrapper authorization uploadType path content =
     Cmd.none
 
 
 deleteFile : BackendOperation -> BackendWrapper msg -> Authorization -> UploadType -> String -> Cmd msg
-deleteFile operation wrapper authrorization uploadType path =
+deleteFile operation wrapper authorization uploadType path =
     Cmd.none
