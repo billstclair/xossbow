@@ -1,0 +1,7 @@
+AddHandler cgi-script .cgi
+Options +ExecCGI
+
+AuthType Basic
+AuthName "Restricted Content"
+AuthUserFile /var/www/xossbow.com/cgi/.htpasswd
+Require valid-user
