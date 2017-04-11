@@ -209,6 +209,7 @@ pageProcessors =
 initialLoaders : Loaders Msg Extra
 initialLoaders =
     makeLoaders fetchTemplate fetchPage initialExtra
+    |> setAtom "referer" (StringAtom "index")
     |> insertFunctions functions
     |> insertMessages messages
     |> addPageProcessors pageProcessors
