@@ -26,5 +26,5 @@ If you're running your own web server, there's a good tutorial, for Ubuntu 16.04
     cd /path/to/htpasswd/dir
     htpasswd -c .htpasswd <username>
     
-You can test it, by aiming your web browser at, e.g. (xossbow.com/cgi/hello.cgi)[https://xossbow.com/cgi/hello.cgi]. It should ask for a userid and password, and then display simply "OK". Xossbow does this itself when you log in.
+You can test it, by aiming your web browser at, e.g. [xossbow.com/cgi/hello.cgi](https://xossbow.com/cgi/hello.cgi). It should ask for a userid and password, and then display simply "OK". Xossbow does this itself when you log in.
 
