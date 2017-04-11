@@ -12,6 +12,8 @@
 module Xossbow.Types exposing ( Node, nodeVersion, emptyNode
                               , ContentType (..)
                               , Plist, get
+                              , UploadType, Authentication
+                              , BackendOperation, BackendWrapper, Backend
                               )
 
 import HtmlTemplate.Types exposing ( Atom(..) )
@@ -72,3 +74,28 @@ get key plist =
                 Just v
             else
                 get key rest
+
+type UploadType
+    = Settings
+    | Page
+    | Template
+    | Image
+
+type alias Authentication =
+    { username : String
+    , password : String
+    }
+
+type BackendOperation
+    = Authenticate Authentication
+    | UploadFile Authentication UploadType String String
+    | DeleteFile Authentication UploadType String
+
+type alias BackendWrapper msg =
+    BackendOperation -> msg
+
+type alias Backend msg =
+    { name : String
+    , description : String
+    , operator : BackendOperation -> BackendWrapper msg -> Cmd msg
+    }
