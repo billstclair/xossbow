@@ -12,8 +12,8 @@
 module Xossbow.Types exposing ( Node, nodeVersion, emptyNode
                               , ContentType (..)
                               , Plist, get
-                              , UploadType, Authentication
-                              , BackendOperation, BackendWrapper, Backend
+                              , UploadType(..), Authorization
+                              , BackendOperation(..), BackendWrapper, Backend
                               )
 
 import HtmlTemplate.Types exposing ( Atom(..) )
@@ -81,21 +81,23 @@ type UploadType
     | Template
     | Image
 
-type alias Authentication =
+type alias Authorization =
     { username : String
     , password : String
     }
 
+-- UploadFile Authorization UploadType path contents
+-- DeleteFile Authorization UploadType path
 type BackendOperation
-    = Authenticate Authentication
-    | UploadFile Authentication UploadType String String
-    | DeleteFile Authentication UploadType String
+    = Authorize Authorization
+    | UploadFile Authorization UploadType String String
+    | DeleteFile Authorization UploadType String
 
 type alias BackendWrapper msg =
-    BackendOperation -> msg
+    Result (String, BackendOperation) BackendOperation -> msg
 
 type alias Backend msg =
     { name : String
     , description : String
-    , operator : BackendOperation -> BackendWrapper msg -> Cmd msg
+    , operator : BackendWrapper msg -> BackendOperation -> Cmd msg
     }
