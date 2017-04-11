@@ -109,7 +109,7 @@ indexPage =
 
 initialPages : List String
 initialPages =
-    [ settingsPageName, indexPage ]
+    [ settingsPageName ]
 
 postTemplate : String
 postTemplate =
@@ -208,7 +208,7 @@ pageProcessors =
 initialLoaders : Loaders Msg Extra
 initialLoaders =
     makeLoaders fetchTemplate fetchPage initialExtra
-    |> setAtom "referer" (StringAtom "index")
+    |> setAtom "referer" (StringAtom indexPage)
     |> insertFunctions functions
     |> insertMessages messages
     |> addPageProcessors pageProcessors
@@ -335,10 +335,10 @@ pageFromLocation location =
     in
         case String.split "." sansSharp of
             [] ->
-                "index"
+                indexPage
             res :: _ ->
                 if res == "" then
-                    "index"
+                    indexPage
                 else
                     res
 
