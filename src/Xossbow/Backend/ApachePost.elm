@@ -57,7 +57,7 @@ httpGet : String -> Authorization -> Http.Request String
 httpGet url authorization =
     Http.request
         { method = "GET"
-        , headers = [ authorizationHeader authorization ]
+        , headers = []  --[ authorizationHeader authorization ]
         , url = url
         , body = Http.emptyBody
         , expect = Http.expectString
@@ -86,7 +86,7 @@ httpPost : String -> Authorization -> Http.Body -> Http.Request String
 httpPost url authorization body =
     Http.request
         { method = "POST"
-        , headers = [ authorizationHeader authorization ]
+        , headers = []  --[ authorizationHeader authorization ]
         , url = url
         , body = body
         , expect = Http.expectString

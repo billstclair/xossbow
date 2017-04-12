@@ -226,21 +226,12 @@ getFunction args dicts =
         _ ->
             emptyString
 
-setFunction : List (Atom Msg) -> Dicts Msg -> Atom Msg
-setFunction args dicts =
-    case args of
-        [ StringAtom name, value ] ->
-            Maybe.withDefault emptyString <|  getDictsAtom name dicts
-        _ ->
-            emptyString
-
 functions : List (String, List (Atom Msg) -> Dicts Msg -> Atom Msg)
 functions =
     [ ( "pageLink", pageLinkFunction )
     , ( "emailLink", emailLinkFunction )
     , ( "xossbow", xossbowFunction )
     , ( "get", getFunction )
-    , ( "set", setFunction )
     ]
 
 type alias Extra =
