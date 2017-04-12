@@ -42,31 +42,29 @@ A Xossbow content file, which the code in [Xossbow.Parsers](src/Xossbow/Parsers.
 
 [`site/page/index.txt`](site/page/index.txt):
     
->     { version: "1"
->     , nodeTemplate: "index"
->     , title: "Index"
->     , author: "Bill St. Clair"
->     , contentType: "Json"
->     }
-> 
->     ["@blog"]
+    { version: "1"
+    , nodeTemplate: "index"
+    , title: "Index"
+    , author: "Bill St. Clair"
+    , contentType: "Json"
+    }
     
+    ["@blog"]
 
 [`site/page/about.txt`](site/page/about.txt):
 
->     { version: "1"
->     , title: "About"
->     , author: "Bill St. Clair"
->     }
->
->     Xossbow is pronounced "Crossbow".
->
->     Elm is a good wood for making longbows. A crossbow is a particularly
->     powerful bow. Xossbow is a particularly powerful blogging framework,
->     made with [Elm](http://elm-lang.org/) and
->     [HtmlTemplate](http://package.elm-lang.org/packages/billstclair/elm-html-template/latest).
->
->     ...
+    { version: "1"
+    , title: "About"
+    , author: "Bill St. Clair"
+    }
+    
+    Xossbow is pronounced "Crossbow".
+    Elm is a good wood for making longbows. A crossbow is a particularly
+    powerful bow. Xossbow is a particularly powerful blogging framework,
+    made with [Elm](http://elm-lang.org/) and
+    [HtmlTemplate](http://package.elm-lang.org/packages/billstclair/elm-html-template/latest).
+    
+    ...
 
 
 The header specifies values for most of the fields in the `Xossbow.Types.Node` type:
