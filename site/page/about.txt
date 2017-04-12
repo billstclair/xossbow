@@ -1,6 +1,6 @@
-{ title: "About"
+{ version: "1"
+, title: "About"
 , author: "Bill St. Clair"
-, time: "-433512000000"
 }
 
 Xossbow is pronounced "Crossbow".

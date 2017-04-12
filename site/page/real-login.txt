@@ -1,6 +1,6 @@
-{ title: ""
+{ version: "1"
+, title: "Login"
 , author: "Bill St. Clair"
-, time: "-433512000000"
 }
 
  | 

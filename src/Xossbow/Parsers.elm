@@ -251,16 +251,20 @@ encodePlist plist =
     "\n }"
 
 removePlistDefaults : Plist -> Plist -> Plist
-removePlistDefaults plist defaults =
+removePlistDefaults defaults plist =
     List.filter (\cell -> not <| List.member cell defaults) plist
 
 emptyPlist : Plist
 emptyPlist =
-    nodeToPlist emptyNode
+    nodeToPlist { emptyNode | version = -1 }
+
+strippedPlist : Plist -> Plist
+strippedPlist plist =
+    removePlistDefaults emptyPlist plist
 
 encodeNode : Node msg -> String
 encodeNode node =
-    (encodePlist <| removePlistDefaults (nodeToPlist node) emptyPlist )
+    ( encodePlist <| strippedPlist (nodeToPlist node) )
     ++ "\n"
     ++ (if "\n" == (String.left 1 node.rawContent) then "" else "\n")
     ++ node.rawContent

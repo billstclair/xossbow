@@ -1,6 +1,6 @@
-{ title: "Login"
+{ version: "1"
+, title: ""
 , author: "Bill St. Clair"
-, time: "-433512000000"
 , contentType: "Json"
 }
 

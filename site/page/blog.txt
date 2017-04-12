@@ -1,6 +1,6 @@
-{ title: "Hello Xossbow"
+{ version: "1"
+, title: "Hello Xossbow"
 , author: "Bill St. Clair"
-, time: "-433512000000"
 }
 
 This is the first post in the [["#xossbow"]] blog.

@@ -1,6 +1,7 @@
-{ title: ""
+{ version: "1"
+, index: "1"
+, title: "Login"
 , author: "Bill St. Clair"
-, time: "-433512000000"
 }
 
 Your browser will query for username and password.

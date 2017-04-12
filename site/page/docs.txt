@@ -1,6 +1,6 @@
-{ title: "Documentation"
+{ version: "1"
+, title: "Documentation"
 , author: "Bill St. Clair"
-, time: "-433512000000"
 }
 
 This will eventually be the index page for documentation on using Xossbow.

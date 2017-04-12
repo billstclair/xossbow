@@ -1,6 +1,6 @@
-{ title: "Templates"
+{ version: "1"
+, title: "Templates"
 , author: "Bill St. Clair"
-, time: "-433512000000"
 }
 
 [["iframe",{"src":"template/default/"},[] ]]

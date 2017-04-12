@@ -1,6 +1,6 @@
-{ title: "Page Source"
+{ version: "1"
+, title: "Page Source"
 , author: "Bill St. Clair"
-, time: "-433512000000"
 }
 
 Page: [["#pageLink","$referer"]]

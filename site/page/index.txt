@@ -1,7 +1,7 @@
-{ nodeTemplate: "index"
+{ version: "1"
+, nodeTemplate: "index"
 , title: "Index"
 , author: "Bill St. Clair"
-, time: "-433512000000"
 , contentType: "Json"
 }
 
