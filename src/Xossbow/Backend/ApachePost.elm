@@ -30,12 +30,65 @@ backend =
 operate : BackendWrapper msg -> BackendOperation -> Cmd msg
 operate wrapper operation =
     case operation of
+        DownloadFile uploadType path _ ->
+            downloadFile operation wrapper uploadType path
         Authorize authorization ->
             authorize operation wrapper authorization
         UploadFile authorization uploadType path content ->
             uploadFile operation wrapper authorization uploadType path content
         DeleteFile authorization uploadType path ->
             deleteFile operation wrapper authorization uploadType path
+
+uploadTypeToString : UploadType -> String
+uploadTypeToString uploadType =
+    case uploadType of
+        Settings -> "settings"
+        Page -> "page"
+        Template -> "template"
+        Image -> "image"
+
+fetchUrl : String -> ((Result Http.Error String) -> msg) -> Cmd msg
+fetchUrl url wrapper =
+    Http.send wrapper <| httpGetString (log "Getting URL" url)
+
+httpGetString : String -> Http.Request String
+httpGetString url =
+    Http.request
+        { method = "GET"
+        , headers = [ Http.header "Cache-control" "no-cache" ]
+        , url = url
+        , body = Http.emptyBody
+        , expect = Http.expectString
+        , timeout = Nothing
+        , withCredentials = False
+        }
+
+settingsPath : String
+settingsPath =
+    "settings.json"
+
+uploadPath : UploadType -> String -> String
+uploadPath uploadType path =
+    case uploadType of
+        Settings ->
+            settingsPath
+        _ ->
+            (uploadTypeToString uploadType) ++ "/" ++ path
+
+downloadFile : BackendOperation -> BackendWrapper msg -> UploadType -> String -> Cmd msg
+downloadFile operation wrapper uploadType path =
+    let url = uploadPath uploadType path
+        wrap = (\res ->
+                    case res of
+                        Err err ->
+                            wrapper
+                            <| Err (toString err, operation)
+                        Ok string ->
+                            wrapper
+                            <| Ok (DownloadFile uploadType path <| Just string)
+               )
+    in
+        fetchUrl url wrap
 
 helloScript : String
 helloScript =
@@ -53,10 +106,13 @@ authorizationHeader { username, password } =
                             <| Base64.encode (username ++ ":" ++ password)
                        )
 
-httpGet : String -> Authorization -> Http.Request String
-httpGet url authorization =
+httpGetWithAuthorization : String -> Authorization -> Http.Request String
+httpGetWithAuthorization url authorization =
     Http.request
         { method = "GET"
+        -- Web browsers will query themselves.
+        -- If you include the header, then their query happens over and over.
+        -- May want an option, though.
         , headers = []  --[ authorizationHeader authorization ]
         , url = url
         , body = Http.emptyBody
@@ -80,7 +136,8 @@ httpWrapper operation wrapper result =
 authorize : BackendOperation -> BackendWrapper msg -> Authorization -> Cmd msg
 authorize operation wrapper authorization =
     Http.send (httpWrapper operation wrapper)
-        <| httpGet (log "Authorizing with" helloScript) authorization
+        <| httpGetWithAuthorization
+            (log "Authorizing with" helloScript) authorization
 
 httpPost : String -> Authorization -> Http.Body -> Http.Request String
 httpPost url authorization body =
@@ -93,14 +150,6 @@ httpPost url authorization body =
         , timeout = Nothing
         , withCredentials = False
         }
-
-uploadTypeToString : UploadType -> String
-uploadTypeToString uploadType =
-    case uploadType of
-        Settings -> "settings"
-        Page -> "page"
-        Template -> "template"
-        Image -> "image"
 
 uploadFile : BackendOperation -> BackendWrapper msg -> Authorization -> UploadType -> String -> String -> Cmd msg
 uploadFile operation wrapper authorization uploadType path content =

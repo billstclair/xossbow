@@ -90,7 +90,8 @@ type alias Authorization =
 -- UploadFile Authorization UploadType path contents
 -- DeleteFile Authorization UploadType path
 type BackendOperation
-    = Authorize Authorization
+    = DownloadFile UploadType String (Maybe String)
+    | Authorize Authorization
     | UploadFile Authorization UploadType String String
     | DeleteFile Authorization UploadType String
 

@@ -14,7 +14,7 @@ module Xossbow exposing (..)
 import Xossbow.Types as Types
     exposing ( Node, ContentType(..), emptyNode
              , Authorization, BackendWrapper, Backend
-             , BackendOperation
+             , BackendOperation, operate, UploadType(..)
              )
 import Xossbow.Parsers exposing ( parseNode )
 import Xossbow.Backend.ApachePost as ApachePost
@@ -77,6 +77,7 @@ type alias Model =
     , page: Maybe String
     , pendingPage : Maybe String
     , playState : Maybe (PlayState Msg)
+    , backend : Backend Msg
     , authorization : Maybe Authorization
     , time : Time
     , error : Maybe String
@@ -236,11 +237,13 @@ functions =
 
 type alias Extra =
     { templateDir : String
+    , backend : Backend Msg
     }
 
 initialExtra : Extra
 initialExtra =
     { templateDir = "default"
+    , backend = backend         --this has to be looked up via the settings
     }
 
 pageProcessors : List (String, String -> Atom Msg -> Loaders Msg Extra -> Loaders Msg Extra)
@@ -274,6 +277,7 @@ init location =
                 , page = Nothing
                 , pendingPage = Nothing
                 , playState = Nothing
+                , backend = backend --will need to look up when we get multiple
                 , authorization = Nothing
                 , time = 0
                 , error = Nothing
@@ -301,8 +305,10 @@ add_page_Property name page loaders =
           loaders
 
 type Msg
-    = TemplateFetchDone String (Loaders Msg Extra) (Result Http.Error String)
-    | PageFetchDone String (Loaders Msg Extra) (Result Http.Error String)
+    = TemplateFetchDone
+      String (Loaders Msg Extra) (Result (String, BackendOperation) BackendOperation)
+    | PageFetchDone
+      String (Loaders Msg Extra) (Result (String, BackendOperation) BackendOperation)
     | GotoPage String
     | UpdatePlayState Update
     | SetError String
@@ -312,41 +318,37 @@ type Msg
     | Login String String
     | HandleLogin (Result (String, BackendOperation) BackendOperation)
 
-fetchUrl : String -> ((Result Http.Error String) -> Msg) -> Cmd Msg
-fetchUrl url wrapper =
-    Http.send wrapper <| httpGetString (log "Getting URL" url)
-
-httpGetString : String -> Http.Request String
-httpGetString url =
-    Http.request
-        { method = "GET"
-        , headers = [ Http.header "Cache-control" "no-cache" ]
-        , url = url
-        , body = Http.emptyBody
-        , expect = Http.expectString
-        , timeout = Nothing
-        , withCredentials = False
-        }
-
 templateDir : Loaders Msg Extra -> String
 templateDir loaders =
     .templateDir <| getExtra loaders
 
+loadersBackend : Loaders Msg Extra -> Backend Msg
+loadersBackend loaders =
+    .backend <| getExtra loaders
+
 fetchTemplate : String -> Loaders Msg Extra -> Cmd Msg
 fetchTemplate name loaders =
     let filename = templateFilename name
-        url = "template/" ++ (templateDir loaders) ++ "/" ++ filename
+        path = (templateDir loaders) ++ "/" ++ filename
     in
-        fetchUrl url <| TemplateFetchDone name loaders
+        operate (loadersBackend loaders)
+            (TemplateFetchDone name loaders)
+            (Types.DownloadFile Template path Nothing)
 
 fetchPage : String -> Loaders Msg Extra -> Cmd Msg
 fetchPage name loaders =
-    let url = if name == settingsPageName then
-                  templateFilename settingsFile
-              else
-                  "page/" ++ (pageFilename name)
+    let uploadType = if name == settingsPageName then
+                         Settings
+                     else
+                         Page
+        path = if uploadType == Page then
+                   (pageFilename name)
+               else
+                   ""
     in
-        fetchUrl url <| PageFetchDone name loaders
+        operate (loadersBackend loaders)
+            (PageFetchDone name loaders)
+            (Types.DownloadFile uploadType path Nothing)
 
 ---
 --- update
@@ -426,31 +428,36 @@ gotoPage page model =
         , fetchPage page <| clearPages model.loaders
         )
 
-templateFetchDone : String -> Loaders Msg Extra -> Result Http.Error String -> Model -> ( Model, Cmd Msg )
+templateFetchDone : String -> Loaders Msg Extra -> Result (String, BackendOperation) BackendOperation -> Model -> ( Model, Cmd Msg )
 templateFetchDone name loaders result model =
     case result of
-        Err err ->
-            ( { model
-                  | error =
+        Err (err, _) ->
+            continueLoading
+                loaders
+                { model
+                    | error =
                       Just
-                      <| "Error fetching template " ++ name ++ ": " ++ (toString err)
-              }
-            , Cmd.none
-            )
-        Ok json ->
+                      <| "Error fetching template " ++ name ++ ": " ++ err
+                }
+        Ok (Types.DownloadFile _ _ (Just json)) ->
             case receiveTemplate name json loaders of
                 Err msg ->
-                    ( { model
-                          | loaders = loaders
-                          , error =
-                              Just
-                              <| "While parsing template \"" ++
-                                  name ++ "\": " ++ msg
-                      }
-                    , Cmd.none
-                    )
+                    continueLoading
+                        loaders
+                        { model
+                            | error =
+                                Just
+                                <| "While parsing template \"" ++
+                                    name ++ "\": " ++ msg
+                        }
                 Ok loaders2 ->
                     continueLoading loaders2 model
+        x ->
+            continueLoading
+                loaders
+                { model
+                    | error = Just ("Don't understand result: " ++ (toString x))
+                }
 
 continueLoading : Loaders Msg Extra -> Model -> ( Model, Cmd Msg )
 continueLoading loaders model =
@@ -542,29 +549,35 @@ nodeToAtom node =
                              ]
                     }
 
-pageFetchDone : String -> Loaders Msg Extra -> Result Http.Error String -> Model -> ( Model, Cmd Msg )
+pageFetchDone : String -> Loaders Msg Extra -> Result (String, BackendOperation) BackendOperation -> Model -> ( Model, Cmd Msg )
 pageFetchDone name loaders result model =
     case result of
-        Err err ->
-            ( { model
-                  | error =
-                      Just
-                      <| "Error fetching page " ++ name ++ ": " ++ (toString err)
-              }
-            , Cmd.none
-            )
-        Ok text ->
+        Err (err, _) ->
+            continueLoading
+                loaders
+                { model
+                    | error =
+                        Just
+                        <| "Error fetching page " ++ name ++ ": " ++ err
+                }
+        Ok (Types.DownloadFile _ _ (Just text)) ->
             case receiveCustomPage (parsePage name) name text loaders of
                 Err msg ->
-                    ( { model
-                          | error =
-                            Just
-                            <| ("While loading page \"" ++ name ++ "\": " ++ msg)
-                      }
-                    , Cmd.none
-                    )
+                    continueLoading
+                        loaders
+                        { model
+                            | error =
+                                Just
+                                <| ("While loading page \"" ++ name ++ "\": " ++ msg)
+                        }
                 Ok loaders2 ->
                     continueLoading loaders2 model
+        x ->
+            continueLoading
+                loaders
+                { model
+                    | error = Just ("Don't understand result: " ++ (toString x))
+                }
 
 maxOneLineEncodeLength : Int
 maxOneLineEncodeLength =
@@ -608,7 +621,7 @@ backend =
 login : String -> String -> Model -> ( Model, Cmd Msg )
 login username password model =
     ( { model | error = Just "Logging in..." }
-    , backend.operator
+    , operate model.backend
         HandleLogin (Types.Authorize <| Authorization username password)
     )
 
