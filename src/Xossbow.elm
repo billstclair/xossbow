@@ -11,10 +11,16 @@
 
 module Xossbow exposing (..)
 
-import Xossbow.Types exposing ( Node, ContentType(..), emptyNode )
+import Xossbow.Types as Types
+    exposing ( Node, ContentType(..), emptyNode
+             , Authorization, BackendWrapper, Backend
+             , BackendOperation
+             )
 import Xossbow.Parsers exposing ( parseNode )
+import Xossbow.Backend.ApachePost as ApachePost
 
 import HtmlTemplate exposing ( makeLoaders, insertFunctions, insertMessages
+                             , insertStringMessages
                              , addPageProcessors
                              , getExtra, setExtra, getDicts
                              , addOutstandingPagesAndTemplates
@@ -29,7 +35,7 @@ import HtmlTemplate exposing ( makeLoaders, insertFunctions, insertMessages
                              , render, eval, cantFuncall
                              )
 
-import HtmlTemplate.Types exposing ( Loaders, Atom(..), Dicts )
+import HtmlTemplate.Types exposing ( Loaders, Atom(..), Dicts(..) )
 
 import HtmlTemplate.EncodeDecode
     exposing ( decodeAtom, encodeAtom, customEncodeAtom )
@@ -71,6 +77,7 @@ type alias Model =
     , page: Maybe String
     , pendingPage : Maybe String
     , playState : Maybe (PlayState Msg)
+    , authorization : Maybe Authorization
     , time : Time
     , error : Maybe String
     }
@@ -131,17 +138,41 @@ pageFilename : String -> String
 pageFilename name =
     name ++ pageFileType
 
-gotoPageFunction : List (Atom Msg) -> d -> Msg
-gotoPageFunction args _ =
+gotoPageMessage : List (Atom Msg) -> d -> Msg
+gotoPageMessage args _ =
     case args of
         [StringAtom page] ->
             GotoPage page
         _ ->
             SetError <| "Can't go to page: " ++ (toString args)
 
+loginMessage : List (Atom Msg) -> d -> Msg
+loginMessage args _ =
+    case args of
+        [StringAtom username, StringAtom password] ->
+            Login username password
+        _ ->
+            SetError <| "You must specify a Username and Password."
+
+setMessage : List (Atom Msg) -> d -> (String -> Msg)
+setMessage args _ =
+    case args of
+        [StringAtom name] ->
+            SetMsg name
+        _ ->
+            (\_ ->
+                 SetError <| "Can't set value: " ++ (toString args)
+            )
+
 messages : List (String, List (Atom Msg) -> Dicts Msg -> Msg)
 messages =
-    [ ( "gotoPage", gotoPageFunction )
+    [ ( "gotoPage", gotoPageMessage )
+    , ( "login", loginMessage )
+    ]
+
+stringMessages : List (String, List (Atom Msg) -> Dicts Msg -> (String -> Msg))
+stringMessages =
+    [ ( "set", setMessage )
     ]
 
 pageLinkFunction : List (Atom Msg) -> d -> Atom Msg
@@ -183,11 +214,33 @@ xossbowFunction args _ =
     <| a [ href <| "/" ]
         [ text "Xossbow" ]
 
+emptyString : Atom msg
+emptyString =
+    StringAtom ""
+
+getFunction : List (Atom Msg) -> Dicts Msg -> Atom Msg
+getFunction args dicts =
+    case args of
+        [ StringAtom name ] ->
+            Maybe.withDefault emptyString <|  getDictsAtom name dicts
+        _ ->
+            emptyString
+
+setFunction : List (Atom Msg) -> Dicts Msg -> Atom Msg
+setFunction args dicts =
+    case args of
+        [ StringAtom name, value ] ->
+            Maybe.withDefault emptyString <|  getDictsAtom name dicts
+        _ ->
+            emptyString
+
 functions : List (String, List (Atom Msg) -> Dicts Msg -> Atom Msg)
 functions =
     [ ( "pageLink", pageLinkFunction )
     , ( "emailLink", emailLinkFunction )
     , ( "xossbow", xossbowFunction )
+    , ( "get", getFunction )
+    , ( "set", setFunction )
     ]
 
 type alias Extra =
@@ -211,6 +264,7 @@ initialLoaders =
     |> setAtom "referer" (StringAtom indexPage)
     |> insertFunctions functions
     |> insertMessages messages
+    |> insertStringMessages stringMessages
     |> addPageProcessors pageProcessors
     |> addOutstandingPagesAndTemplates initialPages initialTemplates
 
@@ -229,6 +283,7 @@ init location =
                 , page = Nothing
                 , pendingPage = Nothing
                 , playState = Nothing
+                , authorization = Nothing
                 , time = 0
                 , error = Nothing
                 }
@@ -262,6 +317,9 @@ type Msg
     | SetError String
     | Navigate Location
     | Tick Time
+    | SetMsg String String
+    | Login String String
+    | HandleLogin (Result (String, BackendOperation) BackendOperation)
 
 fetchUrl : String -> ((Result Http.Error String) -> Msg) -> Cmd Msg
 fetchUrl url wrapper =
@@ -324,6 +382,14 @@ update msg model =
             )
         Navigate location ->
             navigate location model
+        SetMsg name value ->
+            ( { model | loaders = setAtom name (StringAtom value) model.loaders }
+            , Cmd.none
+            )
+        Login username password->
+            login username password model
+        HandleLogin result ->
+            handleLogin result model
 
 pageFromLocation : Location -> String
 pageFromLocation location =
@@ -543,6 +609,32 @@ updatePlayString update model =
     , Cmd.none
     )
 
+-- This will become a table, looked up via settings.backend
+backend : Backend Msg
+backend =
+    ApachePost.backend
+
+login : String -> String -> Model -> ( Model, Cmd Msg )
+login username password model =
+    ( { model | error = Just "Logging in..." }
+    , backend.operator
+        HandleLogin (Types.Authorize <| Authorization username password)
+    )
+
+handleLogin : (Result (String, BackendOperation) BackendOperation) -> Model -> ( Model, Cmd Msg )
+handleLogin result model =
+    case log "handleLogin" result of
+        Ok (Types.Authorize authorization) ->
+            ( { model
+                  | authorization = Just authorization
+                  , error = Just "Success!"
+              }
+            , Cmd.none)
+        _ ->
+            ( { model | error = Just "Login failed." }
+            , Cmd.none
+            )
+
 ---
 --- view
 ----
@@ -550,13 +642,7 @@ updatePlayString update model =
 view : Model -> Html Msg
 view model =
     div []
-        [ case model.error of
-              Just err ->
-                  p [ style [ ( "color", "red" ) ] ]
-                      [ text err ]
-              Nothing ->
-                  text ""
-        , case model.page of
+        [ case model.page of
               Nothing ->
                   text ""
               Just page ->
@@ -585,6 +671,13 @@ view model =
                                                      loaders
                                       in
                                           render tmpl loaders2
+        , p [ style [ ( "color", "red" ) ] ]
+              [ case model.error of
+                    Just err ->
+                    text err
+                    Nothing ->
+                    text " "
+              ]
         ]
 
 dictsDiv : String -> String -> Loaders Msg Extra -> Html Msg

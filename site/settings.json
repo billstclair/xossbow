@@ -4,6 +4,7 @@
   "siteUrl": "https://Xossbow.com/",
   "siteDescription": ["Xossbow (pronounced \"Crossbow\") is a package for maintaining a web site, like WordPress or Drupal, but written in Elm instead of PHP, and with all the rendering done in your Browser, not on the server. See the ",["#pageLink","about"]," page for more information. Xossbow is in development, not yet ready to use."],
   "style": "default",
+  "backend": "ApachePost",
   "sidebar": ["p",{},
               [["#pageLink","index"],
                ["br",{},[]],

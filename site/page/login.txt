@@ -1,0 +1,10 @@
+{ title: "Login"
+, author: "Bill St. Clair"
+, time: "-433512000000"
+}
+
+ | 
+-|-
+Username: | [["input",{"type":"text","width":20,"value":["#get","username"],"onInput":["#set","username"]},[] ]]
+Password: | [["input",{"type":"password","width":20,"value":["#get","password"],"onInput":["#set","password"]},[] ]]
+| [["button",{"onClick":["#login","$username","$password"]},["Login"] ]]
