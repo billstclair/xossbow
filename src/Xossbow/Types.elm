@@ -14,7 +14,9 @@ module Xossbow.Types exposing ( Node, nodeVersion, emptyNode
                               , Plist, get
                               , UploadType(..), Authorization
                               , BackendOperation(..), BackendWrapper, Backend
-                              , operate
+                              , operate, downloadFile
+                              , authorize, authorize_
+                              , uploadFile, deleteFile
                               )
 
 import HtmlTemplate.Types exposing ( Atom(..) )
@@ -109,3 +111,28 @@ operate backend wrapper operation =
     let operator = backend.operator
     in
         operator wrapper operation
+
+downloadFile : Backend msg -> BackendWrapper msg -> UploadType -> String -> Cmd msg
+downloadFile backend wrapper uploadType path =
+    operate backend wrapper
+        <| DownloadFile uploadType path Nothing
+
+authorize : Backend msg -> BackendWrapper msg -> Authorization -> Cmd msg
+authorize backend wrapper authorization =
+    operate backend wrapper
+        <| Authorize authorization
+
+authorize_ : Backend msg -> BackendWrapper msg -> String -> String -> Cmd msg
+authorize_ backend wrapper username password =
+    authorize backend wrapper
+        <| Authorization username password
+
+uploadFile : Backend msg -> BackendWrapper msg -> Authorization -> UploadType -> String -> String -> Cmd msg
+uploadFile backend wrapper authorization uploadType path content =
+    operate backend wrapper
+        <| UploadFile authorization uploadType path content
+
+deleteFile : Backend msg -> BackendWrapper msg -> Authorization -> UploadType -> String -> Cmd msg
+deleteFile backend wrapper authorization uploadType path =
+    operate backend wrapper
+        <| DeleteFile authorization uploadType path

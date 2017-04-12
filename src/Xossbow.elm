@@ -14,7 +14,7 @@ module Xossbow exposing (..)
 import Xossbow.Types as Types
     exposing ( Node, ContentType(..), emptyNode
              , Authorization, BackendWrapper, Backend
-             , BackendOperation, operate, UploadType(..)
+             , BackendOperation, UploadType(..)
              )
 import Xossbow.Parsers exposing ( parseNode )
 import Xossbow.Backend.ApachePost as ApachePost
@@ -331,9 +331,9 @@ fetchTemplate name loaders =
     let filename = templateFilename name
         path = (templateDir loaders) ++ "/" ++ filename
     in
-        operate (loadersBackend loaders)
+        Types.downloadFile (loadersBackend loaders)
             (TemplateFetchDone name loaders)
-            (Types.DownloadFile Template path Nothing)
+            Template path
 
 fetchPage : String -> Loaders Msg Extra -> Cmd Msg
 fetchPage name loaders =
@@ -346,9 +346,9 @@ fetchPage name loaders =
                else
                    ""
     in
-        operate (loadersBackend loaders)
+        Types.downloadFile (loadersBackend loaders)
             (PageFetchDone name loaders)
-            (Types.DownloadFile uploadType path Nothing)
+            uploadType path
 
 ---
 --- update
@@ -621,8 +621,7 @@ backend =
 login : String -> String -> Model -> ( Model, Cmd Msg )
 login username password model =
     ( { model | error = Just "Logging in..." }
-    , operate model.backend
-        HandleLogin (Types.Authorize <| Authorization username password)
+    , Types.authorize_ model.backend HandleLogin username password
     )
 
 handleLogin : (Result (String, BackendOperation) BackendOperation) -> Model -> ( Model, Cmd Msg )
