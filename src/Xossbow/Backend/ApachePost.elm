@@ -18,6 +18,7 @@ import Xossbow.Types exposing ( UploadType(..), Authorization
 import Http
 import Debug exposing ( log )
 import Base64
+import Task
 
 backend : Backend msg
 backend =
@@ -51,8 +52,8 @@ authorizationHeader { username, password } =
                             <| Base64.encode (username ++ ":" ++ password)
                        )
 
-httpGet : Authorization -> String -> Http.Request String
-httpGet authorization url =
+httpGet : String -> Authorization -> Http.Request String
+httpGet url authorization =
     Http.request
         { method = "GET"
         , headers = [ authorizationHeader authorization ]
@@ -63,29 +64,56 @@ httpGet authorization url =
         , withCredentials = True
         }
 
+httpWrapper : BackendOperation -> BackendWrapper msg -> Result Http.Error String -> msg
+httpWrapper operation wrapper result =
+    wrapper <|
+        case result of
+            Err err ->
+                Err (toString err, operation)
+            Ok ok ->
+                if String.trim ok == "OK" then
+                    Ok operation
+                else
+                    Err ("Bad return value: " ++ ok, operation)
+
 authorize : BackendOperation -> BackendWrapper msg -> Authorization -> Cmd msg
 authorize operation wrapper authorization =
-    let wrap = (\res ->
-                    wrapper <|
-                        case res of
-                            Err err ->
-                                Err (toString err, operation)
-                            Ok ok ->
-                                if String.trim ok == "OK" then
-                                    Ok operation
-                                else
-                                    Err ("Bad return value: " ++ ok, operation)
-               )
-    in
-        Http.send wrap
-            <| httpGet authorization (log "Authorizing with" helloScript)
-    
+    Http.send (httpWrapper operation wrapper)
+        <| httpGet (log "Authorizing with" helloScript) authorization
+
+httpPost : String -> Authorization -> Http.Body -> Http.Request String
+httpPost url authorization body =
+    Http.request
+        { method = "POST"
+        , headers = [ authorizationHeader authorization ]
+        , url = url
+        , body = body
+        , expect = Http.expectString
+        , timeout = Nothing
+        , withCredentials = True
+        }
+
+uploadTypeToString : UploadType -> String
+uploadTypeToString uploadType =
+    case uploadType of
+        Settings -> "settings"
+        Page -> "page"
+        Template -> "template"
+        Image -> "image"
 
 uploadFile : BackendOperation -> BackendWrapper msg -> Authorization -> UploadType -> String -> String -> Cmd msg
 uploadFile operation wrapper authorization uploadType path content =
-    Cmd.none
-
+    Http.send (httpWrapper operation wrapper)
+        <| httpPost (log "Posting with" uploadScript) authorization
+        <| Http.multipartBody
+            [ Http.stringPart "type" (uploadTypeToString uploadType)
+            , Http.stringPart "name" path
+            , Http.stringPart "file" content
+            ]
 
 deleteFile : BackendOperation -> BackendWrapper msg -> Authorization -> UploadType -> String -> Cmd msg
 deleteFile operation wrapper authorization uploadType path =
-    Cmd.none
+    Task.attempt (\_ -> wrapper
+                      <| Err ("DeleteFile not yet implemented", operation)
+                 )
+        <| Task.succeed ()
