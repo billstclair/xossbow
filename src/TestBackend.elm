@@ -164,7 +164,7 @@ view model =
                 []
             , br
             , text "password: "
-            , input [ type_ "text"
+            , input [ type_ "password"
                     , onInput UpdatePassword
                     , value model.password
                     ]
