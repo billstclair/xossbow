@@ -21,7 +21,7 @@ I currently plan only two backends:
     POSTs to a little Perl script I wrote. I haven't yet implemented
     deletion.
     
-2. Amazon S3
+2. [Amazon S3](https://aws.amazon.com/s3/)
 
    Amazon's Simple Storage Service also allows reading with plain old
    HTTP requests, so I'll be able to share that code. It has it's own
