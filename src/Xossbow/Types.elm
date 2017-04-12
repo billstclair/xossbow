@@ -14,6 +14,7 @@ module Xossbow.Types exposing ( Node, nodeVersion, emptyNode
                               , Plist, get
                               , UploadType(..), Authorization
                               , BackendOperation(..), BackendWrapper, Backend
+                              , operate
                               )
 
 import HtmlTemplate.Types exposing ( Atom(..) )
@@ -101,3 +102,9 @@ type alias Backend msg =
     , description : String
     , operator : BackendWrapper msg -> BackendOperation -> Cmd msg
     }
+
+operate : Backend msg -> BackendWrapper msg -> BackendOperation -> Cmd msg
+operate backend wrapper operation =
+    let operator = backend.operator
+    in
+        operator wrapper operation

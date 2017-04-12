@@ -45,6 +45,7 @@ uploadScript : String
 uploadScript =
     "cgi/upload.cgi"
 
+-- https://en.wikipedia.org/wiki/Basic_access_authentication#Client_side
 authorizationHeader : Authorization -> Http.Header
 authorizationHeader { username, password } =
     Http.header "Authorization"
@@ -61,7 +62,7 @@ httpGet url authorization =
         , body = Http.emptyBody
         , expect = Http.expectString
         , timeout = Nothing
-        , withCredentials = True
+        , withCredentials = False
         }
 
 httpWrapper : BackendOperation -> BackendWrapper msg -> Result Http.Error String -> msg
@@ -90,7 +91,7 @@ httpPost url authorization body =
         , body = body
         , expect = Http.expectString
         , timeout = Nothing
-        , withCredentials = True
+        , withCredentials = False
         }
 
 uploadTypeToString : UploadType -> String
@@ -108,7 +109,7 @@ uploadFile operation wrapper authorization uploadType path content =
         <| Http.multipartBody
             [ Http.stringPart "type" (uploadTypeToString uploadType)
             , Http.stringPart "name" path
-            , Http.stringPart "file" content
+            , Http.stringPart "content" content
             ]
 
 deleteFile : BackendOperation -> BackendWrapper msg -> Authorization -> UploadType -> String -> Cmd msg
