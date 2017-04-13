@@ -29,7 +29,7 @@ I currently plan only two backends:
    mechanism, so I'll have to implement that. Since I want Xossbow to
    remain pure Elm, runnable in `elm-reactor` (except for the
    server-side scripts), I'll have to write the update code myself.
-   
+
 It appears that Evan is working on [pluggable Elm modules](https://groups.google.com/d/msg/elm-dev/qdu3NqOqGrY/_jRl5ROiBAAJ), which can be
 loaded after an application starts. If so, that will enable more
 backends, which can be independently distributed. Or maybe I'm
@@ -66,6 +66,20 @@ A Xossbow content file, which the code in [Xossbow.Parsers](src/Xossbow/Parsers.
     
     ...
 
+[`site/page/blog.txt`](site/page/blog.txt):
+
+    { version: "1"
+    , title: "Hello Xossbow"
+    , author: "Bill St. Clair"
+    }
+    
+    This is the first post in the [["#xossbow"]] blog.
+        
+    I'm undecided about a logo. I currently have three ideas. If you
+    have a preference, or another idea, please send email to
+    <Xossbow@gmail.com>. Here are my ideas:
+    
+    ...
 
 The header specifies values for most of the fields in the `Xossbow.Types.Node` type:
 
@@ -116,3 +130,179 @@ And only the fields copied by `Xossbow.Parsers.nodeToPlist` are ever saved:
         , ( "time", toString node.time )
         , ( "contentType", contentTypeToString node.contentType )
         ]
+
+## Index files
+
+The current `index.txt` gives a clue. The plan is to be able to "tag" each post, with as many tags as you want. Each tag will have its own directory, "`tag/<tag-name>`", with an `index.txt` file whose `title` describes the tag, and whose contents is a list of the most recent posts with that tag. Previous and next links give you a way to navigate to older, and then younger, index pages.
+
+`site/tag/blog/index.txt` (and `30.txt`):
+    
+    { version: "1"
+    , nodeTemplate: "index"
+    , title: "Blog"
+    , description: "[\"$settings.siteDescription\"]"
+    , author: "Bill St. Clair"
+    , contentType: "Json"
+    , permindex: "30"
+    , previous: "20"
+    , next: ""
+    }
+    
+    [ "@post22"
+    , "@post21" 
+    ]
+
+`site/tag/blog/20.txt`:
+    
+    { version: "1"
+    , nodeTemplate: "index"
+    , title: "Blog page 2"
+    , author: "Bill St. Clair"
+    , contentType: "Json"
+    , permindex: "20"
+    , previous: "10"
+    , next: "30"
+    }
+    
+    [ "@post20"
+    , "@post19" 
+    , "@post18" 
+    , "@post17" 
+    , "@post16" 
+    , "@stories/billpoopoo" 
+    , "@post14" 
+    , "@post13" 
+    , "@post12" 
+    , "@post11" 
+    ]
+
+`site/tag/blog/10.txt`:
+    
+    { version: "1"
+    , nodeTemplate: "index"
+    , title: "Blog page 1"
+    , author: "Bill St. Clair"
+    , contentType: "Json"
+    , permindex: "10"
+    , previous: ""
+    , next: "20"
+    }
+    
+    [ "@post10"
+    , "@post9" 
+    , "@post8" 
+    , "@post7" 
+    , "@stories/inshallah" 
+    , "@post5" 
+    , "@post4" 
+    , "@post3" 
+    , "@post2" 
+    , "@blog" 
+    ]
+
+`site/tag/stories/index.txt` (and `10.txt`):
+
+    { version: "1"
+    , nodeTemplate: "index"
+    , title: "Stories"
+    , description: "Stories I've Written and Collected"
+    , author: "Bill St. Clair"
+    , contentType: "Json"
+    , permindex: "10"
+    , previous: ""
+    , next: ""
+    }
+    
+    [ "@stories/billpoopoo"
+    , "@stories/inshallah" 
+    ]
+
+`site/tags.txt`:
+
+    { version: "1"
+    , nodeTemplate: "index"
+    , title: "Tags"
+    , description: "An index to articles by tag"
+    , author: "Bill St. Clair"
+    , contentType: "Json"
+    }
+    
+    ["#bulletedList",
+     ["#pagelink","tag/blog","Blog"],
+     ["#pagelink","tag/stories","Stories"]
+    ]
+
+One very interesting property of this scheme is that the same files that are used to render the index pages for the web contain all the information necessary to find all the posts in every category. The posts also need to know their categories. There will be a default category list property in "[`settings.json`](site/settings.json)", named perhaps "`defaultCategories`". And each post will know its categories:
+
+
+[`site/page/blog.txt`](site/page/blog.txt):
+
+    { version: "1"
+    , title: "Hello Xossbow"
+    , author: "Bill St. Clair"
+    , tags: "[\"blog\"]
+    }
+    
+    This is the first post in the [["#xossbow"]] blog.
+    ...
+
+[`site/page/stories/billpoopoo.txt`](https://etwof.com/stories/billpoopoo.html) (Do click. It's a very funny story):
+
+    { version: "1"
+    , title: "From the Mouths of Babes"
+    , author: "Bill St. Clair"
+    , tags: "[\"blog\", \"stories\"]"
+    }
+    
+    This is a true story. None of the names have been changed.
+    ...
+
+Note that though the values in the property list at the top of a file are strings, for the `tags` field, that string will be JSON.
+
+There's one more thing to do. Though this is all well and good for running a Xossbow site, since it's all rendered with JavaScript, there's nothing for Google to index. Hence, if the user so chooses, Xossbow will write HTML version of the index files that link to the text files for the content, along with actual links to the site.
+
+`site/html/index.html`:
+
+    <html>
+      <head>
+        <title>Xossbow - Blogging in Elm</title>
+      </head>
+      <body>
+        <ul>
+          <li><a href='../../tag/blog/post22.txt'>Post 22</a></li>
+          <li><a href='../../tag/blog/post21.txt'>Post 21</a></li>
+        </ul>
+        <p>
+          <a href='blog/20.html'>prev</a> index next
+        </p>
+      </body>
+    </html>
+
+`site/html/blog/20.html`:
+
+    <html>
+      <head>
+        <title>Xossbow - Blog page 2</title>
+      </head>
+      <body>
+        <ul>
+          <li><a href='../../tag/blog/post20.txt'>Post 20</a></li>
+          <li><a href='../../tag/blog/post19.txt'>Post 19</a></li>
+          <li><a href='../../tag/blog/post18.txt'>Post 18</a></li>
+          <li><a href='../../tag/blog/post17.txt'>Post 17</a></li>
+          <li><a href='../../tag/blog/post16.txt'>Post 16</a></li>
+          <li><a href='../../tag/stories/billpoopoo.txt'>From the Mouths of Babes</a></li>
+          <li><a href='../../tag/blog/post14.txt'>Post 14</a></li>
+          <li><a href='../../tag/blog/post13.txt'>Post 13</a></li>
+          <li><a href='../../tag/blog/post12.txt'>Post 12</a></li>
+          <li><a href='../../tag/blog/post11.txt'>Post 11</a></li>
+        </ul>
+        <p>
+          <a href='10.html'>prev</a> <a href='index.html'>index</a> <a href='30.html'>next</a>
+        </p>
+      </body>
+    </html>
+
+Or something like that. The headers will also need permalinks, so that people who arrive there from Google will know where to go for the pretty content. Or maybe Google will start simulating JavaScript web pages to properly index them.
+
+Make it so!
