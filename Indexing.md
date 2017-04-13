@@ -10,7 +10,7 @@ One of my principles in building Xossbow is to work with the barest of key/value
 
 Note that there's no directory listing operation. That's intentional. I don't want to rely on it. This means that indexing must be done by writing files with known names that reference files that are dynamically created by a Xossbow site's authors. This file documents that indexing mechanism.
 
-# Backends
+## Backends
 
 I currently plan only two backends:
 
@@ -36,7 +36,7 @@ backends, which can be independently distributed. Or maybe I'm
 dreaming, and interpreting his March 7 status report to mean what I
 want it to mean and not what he actually wrote.
 
-# File format
+## File format
 
 A Xossbow content file, which the code in [Xossbow.Parsers](src/Xossbow/Parsers.elm) calls a `Node` ([Drupal](https://www.drupal.org/) teminology), begins with a header, which looks like a JavaScript object with strings for values. The rest of the file is in a format defined by the header:
 

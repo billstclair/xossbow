@@ -1,0 +1,4 @@
+# Mark the content files as vendored.
+# This will hopefully make GitHub mark this project as Elm, not HTML.
+
+^site/
