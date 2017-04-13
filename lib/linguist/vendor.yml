@@ -2,4 +2,4 @@
 # This will hopefully make GitHub mark this project as Elm, not HTML.
 
 # The culprit content files
-- (^|/)logo-maker/
+- index.html
