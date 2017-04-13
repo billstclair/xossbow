@@ -232,7 +232,7 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
      ["#pagelink","tag/stories","Stories"]
     ]
 
-One very interesting property of this scheme is that the same files that are used to render the index pages for the web contain all the information necessary to find all the posts in every category. The posts also need to know their categories. There will be a default category list property in "[`settings.json`](site/settings.json)", named perhaps "`defaultCategories`". And each post will know its categories:
+One very interesting property of this scheme is that the same files that are used to render the index pages for the web contain all the information necessary to find all the posts for each tag. The posts also need to know their tags. There will be a default tag list property in "[`settings.json`](site/settings.json)", named perhaps "`defaultTags`". And a new "`tags`" property for posts:
 
 
 [`site/page/blog.txt`](site/page/blog.txt):
