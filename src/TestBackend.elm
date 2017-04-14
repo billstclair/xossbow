@@ -14,7 +14,7 @@ module TestBackend exposing (..)
 import Xossbow.Types as Types
     exposing ( UploadType(..), Authorization
              , BackendOperation, BackendWrapper, Backend
-             , operate
+             , authorize_, uploadFile
              )
 import Xossbow.Backend.ApachePost as ApachePost
 
@@ -52,7 +52,7 @@ type alias Model =
 
 emptyOperation : BackendOperation
 emptyOperation =
-    Types.Authorize <| Authorization "" ""
+    Types.Authorize backend.state <| Authorization "" ""
 
 init : ( Model, Cmd msg)
 init =
@@ -110,9 +110,7 @@ update msg model =
           )
       Authorize ->
           ( { model | result = Nothing }
-            , operate backend Receive
-                <| Types.Authorize
-                <| Authorization model.username model.password
+            , authorize_ backend Receive model.username model.password
           )
       Upload ->
           case model.authorization of
@@ -125,17 +123,16 @@ update msg model =
                   )
               Just authorization ->
                   ( { model | result = Nothing }
-                  , operate backend Receive
-                      <| Types.UploadFile
-                          authorization
-                          model.uploadType
-                          model.path
-                          model.content
+                  , uploadFile backend Receive
+                      authorization
+                      model.uploadType
+                      model.path
+                      model.content
                   )
       Receive result ->
           let authorization =
                   case result of
-                      Ok (Types.Authorize auth) ->
+                      Ok (Types.Authorize _ auth) ->
                           Just auth
                       _ ->
                           model.authorization

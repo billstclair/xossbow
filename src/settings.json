@@ -1,1 +1,32 @@
-../site/settings.json
+{ "backend": "RamDict",
+  "siteName": "Xossbow",
+  "siteSlogan": "Blogging in Elm",
+  "siteEditor": "Bill St. Clair",
+  "siteUrl": "https://Xossbow.com/",
+  "siteDescription": ["Xossbow (pronounced \"Crossbow\") is a package for maintaining a web site, like WordPress or Drupal, but written in Elm instead of PHP, and with all the rendering done in your Browser, not on the server. See the ",["#pageLink","about"]," page for more information. Xossbow is in development, not yet ready to use."],
+  "style": "default",
+  "sidebar": ["p",{},
+              [["#pageLink","index"],
+               ["br",{},[]],
+               ["#pageLink","about"],
+               ["br",{},[]],
+               ["#pageLink","docs"],
+               ["br",{},[]],
+               ["#pageLink","play"],
+               ["br",{},[]],
+               ["br",{},[]],
+               ["#pageLink","templates"],
+               ["br",{},[]],
+               ["#pageLink","pages"],
+               ["br",{},[]],
+               ["#pageLink","settings"],
+               ["br",{},[]],
+               ["br",{},[]],
+               ["#pageLink","stylesheet"]
+              ]
+             ],
+  "footer": ["Copyright ","$entities.copyright"," 2017 Bill St. Clair",
+             ["br",{},[]],
+             ["a",{"href":"/"},[{"src":"images/xossbow-logo-81x41.png","alt":"Xossbow Logo","title":"Made with Xossbow","width":81,"height":41}]]
+            ]
+}

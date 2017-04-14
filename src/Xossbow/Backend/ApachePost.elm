@@ -117,7 +117,7 @@ httpWrapper operation wrapper result =
                 if String.trim ok == "OK" then
                     Ok operation
                 else
-                    Err ("Bad return value: " ++ ok, operation)
+                    Err ("Backend error: " ++ ok, operation)
 
 authorize : BackendWrapper msg -> BackendOperation -> Authorization -> Cmd msg
 authorize wrapper operation authorization =

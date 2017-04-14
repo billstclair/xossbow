@@ -19,6 +19,7 @@ import Xossbow.Types as Types
              )
 import Xossbow.Parsers exposing ( parseNode )
 import Xossbow.Backend.ApachePost as ApachePost
+import Xossbow.Backend.RamDict as RamDict
 
 import HtmlTemplate exposing ( makeLoaders, insertFunctions, insertMessages
                              , insertStringMessages
@@ -59,6 +60,7 @@ import Http
 import Date
 import Time exposing ( Time, second )
 import Dict exposing ( Dict )
+import List.Extra as LE
 
 import Navigation exposing ( Location )
 
@@ -73,6 +75,11 @@ main =
         , subscriptions = (\x -> Time.every second Tick)
         }
 
+type StartupState
+    = JustStarted
+    | BackendInstalled
+    | Ready
+
 type alias Model =
     { loaders: Loaders Msg Extra
     , location : Location
@@ -80,6 +87,7 @@ type alias Model =
     , pendingPage : Maybe String
     , playState : Maybe (PlayState Msg)
     , backend : Backend Msg
+    , startupState : StartupState
     , authorization : Maybe Authorization
     , time : Time
     , error : Maybe String
@@ -119,7 +127,7 @@ indexPage =
 
 initialPages : List String
 initialPages =
-    [ settingsPageName ]
+    [ ]
 
 postTemplate : String
 postTemplate =
@@ -262,7 +270,7 @@ makeInitialLoaders backend =
     |> insertMessages messages
     |> insertStringMessages stringMessages
     |> addPageProcessors pageProcessors
-    |> addOutstandingPagesAndTemplates initialPages initialTemplates
+    |> addOutstandingPagesAndTemplates [settingsPageName] []
 
 ---
 --- init
@@ -270,13 +278,14 @@ makeInitialLoaders backend =
 
 init : Location -> ( Model, Cmd Msg)
 init location =
-    let backend = getBackend "Null"
+    let backend = defaultBackend
         model = { loaders = makeInitialLoaders backend
                 , location = location
                 , page = Nothing
                 , pendingPage = Nothing
                 , playState = Nothing
                 , backend = backend
+                , startupState = JustStarted
                 , authorization = Nothing
                 , time = 0
                 , error = Nothing
@@ -552,6 +561,12 @@ nodeToAtom node =
                              ]
                     }
 
+getStringProp : String -> List (String, Atom msg) -> Maybe String
+getStringProp prop plist =
+    case LE.find (\(key, _) -> prop == key) plist of
+        Just (_, StringAtom res) -> Just res
+        _ -> Nothing
+
 pageFetchDone : String -> Loaders Msg Extra -> BackendResult -> Model -> ( Model, Cmd Msg )
 pageFetchDone name loaders result model =
     case result of
@@ -564,22 +579,103 @@ pageFetchDone name loaders result model =
                         <| "Error fetching page " ++ name ++ ": " ++ err
                 }
         Ok (Types.DownloadFile _ _ _ (Just text)) ->
-            case receiveCustomPage (parsePage name) name text loaders of
-                Err msg ->
-                    continueLoading
-                        loaders
-                        { model
-                            | error =
-                                Just
-                                <| ("While loading page \"" ++ name ++ "\": " ++ msg)
-                        }
-                Ok loaders2 ->
-                    continueLoading loaders2 model
-        x ->
+            let pageres = parsePage name text
+                settings = getAtom settingsFile loaders
+            in
+                case receiveCustomPage (\_ -> pageres) name text loaders of
+                    Err msg ->
+                        case model.startupState of
+                            BackendInstalled ->
+                                -- No settings.json on new backend.
+                                -- Stay with the original
+                                backendInstalled loaders model
+                            _ ->
+                                continueLoading
+                                    loaders
+                                    { model
+                                        | error =
+                                          Just
+                                          <| ("While loading page \""
+                                              ++ name ++ "\": " ++ msg)
+                                    }
+                    Ok loaders2 ->
+                        case model.startupState of
+                            Ready ->
+                                continueLoading loaders2 model
+                            JustStarted ->
+                                maybeRefetchSettings pageres loaders2 model
+                            BackendInstalled ->
+                                backendInstalled loaders2 model
+        Ok x ->
             continueLoading
                 loaders
                 { model
                     | error = Just ("Don't understand result: " ++ (toString x))
+                }
+
+backendInstalled : Loaders Msg Extra -> Model -> ( Model, Cmd Msg )
+backendInstalled loaders model =
+    let loaders2 = addOutstandingPagesAndTemplates
+                   initialPages initialTemplates loaders
+    in
+        continueLoading
+            loaders2 { model | startupState = Ready }
+
+maybeRefetchSettings : Result String (Atom msg) -> Loaders Msg Extra -> Model -> (Model, Cmd Msg)
+maybeRefetchSettings pageres loaders model =
+    case pageres of
+        Err err ->
+            continueLoading
+                loaders
+                { model
+                    | error
+                      = Just <| "Error loading initial settings: " ++ err
+                }
+        Ok (PListAtom plist) ->
+            case getStringProp "backend" plist of
+                Nothing ->
+                    backendInstalled
+                        loaders
+                        { model
+                            | error
+                              = Just "Missing backend property in settings."
+                        }
+                Just backendName ->
+                    if (log "new backend" backendName)
+                        == (log "  old backend"
+                                <| .name (loadersBackend loaders))
+                    then
+                        backendInstalled loaders model
+                    else
+                        case getBackend backendName of
+                            Nothing ->
+                                backendInstalled
+                                    loaders
+                                    { model
+                                        | error
+                                          = Just
+                                            <| "Unknown backend: " ++ backendName
+                                    }
+                            Just backend ->
+                                let loaders2 = addOutstandingPagesAndTemplates
+                                               [settingsPageName] [] loaders
+                                    extra = getExtra loaders2
+                                in
+                                    continueLoading
+                                        ( setExtra
+                                              { extra | backend = backend }
+                                              loaders2
+                                        )
+                                        { model
+                                            | backend = backend
+                                            , startupState = BackendInstalled
+                                        }
+        Ok x ->
+            continueLoading
+                loaders
+                { model
+                    | error
+                      = Just <| "Non-plist for settings: " ++ (toString x)
                 }
 
 maxOneLineEncodeLength : Int
@@ -621,11 +717,16 @@ backendDict : Dict String (Backend msg)
 backendDict =
     Dict.fromList
         [ ("ApachePost", ApachePost.backend)
+        , ("RamDict", RamDict.backend)
         ]
 
-getBackend : String -> Backend msg
+defaultBackend : Backend msg
+defaultBackend =
+    ApachePost.backend
+
+getBackend : String -> Maybe (Backend msg)
 getBackend name =
-    Maybe.withDefault ApachePost.backend <| Dict.get name backendDict
+    Dict.get name backendDict
 
 login : String -> String -> Model -> ( Model, Cmd Msg )
 login username password model =
@@ -635,7 +736,7 @@ login username password model =
 
 handleLogin : BackendResult -> Model -> ( Model, Cmd Msg )
 handleLogin result model =
-    case log "handleLogin" result of
+    case result of
         Ok (Types.Authorize _ authorization) ->
             ( { model
                   | authorization = Just authorization
