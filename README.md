@@ -28,5 +28,7 @@ To do a build and sync the `xossbow.com` website with your local machine (not to
     cd .../xossbow
     bin/update-site
 
+[Indexing.md](Indexing.md) contains documentation of the post file format and indexing scheme.
+
 Bill St. Clair
 26 March 2017

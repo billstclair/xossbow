@@ -220,16 +220,15 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
 `site/tags.txt`:
 
     { version: "1"
-    , nodeTemplate: "index"
+    , nodeTemplate: "tagsIndex"
     , title: "Tags"
     , description: "An index to articles by tag"
     , author: "Bill St. Clair"
     , contentType: "Json"
     }
     
-    ["#bulletedList",
-     ["#pagelink","tag/blog","Blog"],
-     ["#pagelink","tag/stories","Stories"]
+    [ ["@tag/blog","Blog"],
+      ["@tag/stories","Stories"]
     ]
 
 One very interesting property of this scheme is that the same files that are used to render the index pages for the web contain all the information necessary to find all the posts for each tag. The posts also need to know their tags. There will be a default tag list property in "[`settings.json`](site/settings.json)", named perhaps "`defaultTags`". And a new "`tags`" property for posts:

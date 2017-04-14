@@ -13,8 +13,9 @@ module Xossbow exposing (..)
 
 import Xossbow.Types as Types
     exposing ( Node, ContentType(..), emptyNode
-             , Authorization, BackendWrapper, Backend
+             , State(..), Authorization, BackendWrapper, Backend
              , BackendOperation, UploadType(..)
+             , BackendResult, updateStateFromResult
              )
 import Xossbow.Parsers exposing ( parseNode )
 import Xossbow.Backend.ApachePost as ApachePost
@@ -57,6 +58,7 @@ import Html.Events exposing ( onClick, onInput )
 import Http
 import Date
 import Time exposing ( Time, second )
+import Dict exposing ( Dict )
 
 import Navigation exposing ( Location )
 
@@ -240,10 +242,10 @@ type alias Extra =
     , backend : Backend Msg
     }
 
-initialExtra : Extra
-initialExtra =
+makeInitialExtra : Backend Msg -> Extra
+makeInitialExtra backend =
     { templateDir = "default"
-    , backend = backend         --this has to be looked up via the settings
+    , backend = backend
     }
 
 pageProcessors : List (String, String -> Atom Msg -> Loaders Msg Extra -> Loaders Msg Extra)
@@ -252,9 +254,9 @@ pageProcessors =
     , ( "", add_page_Property )
     ]
 
-initialLoaders : Loaders Msg Extra
-initialLoaders =
-    makeLoaders fetchTemplate fetchPage initialExtra
+makeInitialLoaders : Backend Msg -> Loaders Msg Extra
+makeInitialLoaders backend =
+    makeLoaders fetchTemplate fetchPage (makeInitialExtra backend)
     |> setAtom "referer" (StringAtom indexPage)
     |> insertFunctions functions
     |> insertMessages messages
@@ -262,22 +264,19 @@ initialLoaders =
     |> addPageProcessors pageProcessors
     |> addOutstandingPagesAndTemplates initialPages initialTemplates
 
-initialDicts : Dicts Msg
-initialDicts =
-    getDicts initialLoaders
-
 ---
 --- init
 ---
 
 init : Location -> ( Model, Cmd Msg)
 init location =
-    let model = { loaders = initialLoaders
+    let backend = getBackend "Null"
+        model = { loaders = makeInitialLoaders backend
                 , location = location
                 , page = Nothing
                 , pendingPage = Nothing
                 , playState = Nothing
-                , backend = backend --will need to look up when we get multiple
+                , backend = backend
                 , authorization = Nothing
                 , time = 0
                 , error = Nothing
@@ -305,10 +304,8 @@ add_page_Property name page loaders =
           loaders
 
 type Msg
-    = TemplateFetchDone
-      String (Loaders Msg Extra) (Result (String, BackendOperation) BackendOperation)
-    | PageFetchDone
-      String (Loaders Msg Extra) (Result (String, BackendOperation) BackendOperation)
+    = TemplateFetchDone String (Loaders Msg Extra) BackendResult
+    | PageFetchDone String (Loaders Msg Extra) BackendResult
     | GotoPage String
     | UpdatePlayState Update
     | SetError String
@@ -316,7 +313,7 @@ type Msg
     | Tick Time
     | SetMsg String String
     | Login String String
-    | HandleLogin (Result (String, BackendOperation) BackendOperation)
+    | HandleLogin BackendResult
 
 templateDir : Loaders Msg Extra -> String
 templateDir loaders =
@@ -354,13 +351,19 @@ fetchPage name loaders =
 --- update
 ---
 
+updateBackend : BackendResult -> Model -> Model
+updateBackend result model =
+    { model | backend = updateStateFromResult result model.backend }
+
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         TemplateFetchDone name loaders result ->
-            templateFetchDone name loaders result model
+            templateFetchDone name loaders result
+                <| updateBackend result model
         PageFetchDone name loaders result ->
-            pageFetchDone name loaders result model
+            pageFetchDone name loaders result
+                <| updateBackend result model
         GotoPage page ->
             gotoPage page model
         UpdatePlayState update ->
@@ -382,7 +385,7 @@ update msg model =
         Login username password->
             login username password model
         HandleLogin result ->
-            handleLogin result model
+            handleLogin result <| updateBackend result model
 
 pageFromLocation : Location -> String
 pageFromLocation location =
@@ -428,7 +431,7 @@ gotoPage page model =
         , fetchPage page <| clearPages model.loaders
         )
 
-templateFetchDone : String -> Loaders Msg Extra -> Result (String, BackendOperation) BackendOperation -> Model -> ( Model, Cmd Msg )
+templateFetchDone : String -> Loaders Msg Extra -> BackendResult -> Model -> ( Model, Cmd Msg )
 templateFetchDone name loaders result model =
     case result of
         Err (err, _) ->
@@ -439,7 +442,7 @@ templateFetchDone name loaders result model =
                       Just
                       <| "Error fetching template " ++ name ++ ": " ++ err
                 }
-        Ok (Types.DownloadFile _ _ (Just json)) ->
+        Ok (Types.DownloadFile _ _ _ (Just json)) ->
             case receiveTemplate name json loaders of
                 Err msg ->
                     continueLoading
@@ -549,7 +552,7 @@ nodeToAtom node =
                              ]
                     }
 
-pageFetchDone : String -> Loaders Msg Extra -> Result (String, BackendOperation) BackendOperation -> Model -> ( Model, Cmd Msg )
+pageFetchDone : String -> Loaders Msg Extra -> BackendResult -> Model -> ( Model, Cmd Msg )
 pageFetchDone name loaders result model =
     case result of
         Err (err, _) ->
@@ -560,7 +563,7 @@ pageFetchDone name loaders result model =
                         Just
                         <| "Error fetching page " ++ name ++ ": " ++ err
                 }
-        Ok (Types.DownloadFile _ _ (Just text)) ->
+        Ok (Types.DownloadFile _ _ _ (Just text)) ->
             case receiveCustomPage (parsePage name) name text loaders of
                 Err msg ->
                     continueLoading
@@ -614,9 +617,15 @@ updatePlayString update model =
     )
 
 -- This will become a table, looked up via settings.backend
-backend : Backend Msg
-backend =
-    ApachePost.backend
+backendDict : Dict String (Backend msg)
+backendDict =
+    Dict.fromList
+        [ ("ApachePost", ApachePost.backend)
+        ]
+
+getBackend : String -> Backend msg
+getBackend name =
+    Maybe.withDefault ApachePost.backend <| Dict.get name backendDict
 
 login : String -> String -> Model -> ( Model, Cmd Msg )
 login username password model =
@@ -624,10 +633,10 @@ login username password model =
     , Types.authorize_ model.backend HandleLogin username password
     )
 
-handleLogin : (Result (String, BackendOperation) BackendOperation) -> Model -> ( Model, Cmd Msg )
+handleLogin : BackendResult -> Model -> ( Model, Cmd Msg )
 handleLogin result model =
     case log "handleLogin" result of
-        Ok (Types.Authorize authorization) ->
+        Ok (Types.Authorize _ authorization) ->
             ( { model
                   | authorization = Just authorization
                   , error = Just "Success!"

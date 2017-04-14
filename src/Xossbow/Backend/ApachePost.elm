@@ -11,8 +11,9 @@
 
 module Xossbow.Backend.ApachePost exposing ( backend )
 
-import Xossbow.Types exposing ( UploadType(..), Authorization
+import Xossbow.Types exposing ( State(..), UploadType(..), Authorization
                               , BackendOperation(..), BackendWrapper, Backend
+                              , uploadTypeToString, settingsPath, uploadPath
                               )
 
 import Http
@@ -20,32 +21,29 @@ import Debug exposing ( log )
 import Base64
 import Task
 
+state : State
+state =
+    NullState
+
 backend : Backend msg
 backend =
     { name = "ApachePost"
     , description = "Post with the Perl script in site/cgi/upload.cgi."
     , operator = operate
+    , state = state
     }
 
 operate : BackendWrapper msg -> BackendOperation -> Cmd msg
 operate wrapper operation =
     case operation of
-        DownloadFile uploadType path _ ->
-            downloadFile operation wrapper uploadType path
-        Authorize authorization ->
-            authorize operation wrapper authorization
-        UploadFile authorization uploadType path content ->
-            uploadFile operation wrapper authorization uploadType path content
-        DeleteFile authorization uploadType path ->
-            deleteFile operation wrapper authorization uploadType path
-
-uploadTypeToString : UploadType -> String
-uploadTypeToString uploadType =
-    case uploadType of
-        Settings -> "settings"
-        Page -> "page"
-        Template -> "template"
-        Image -> "image"
+        DownloadFile _ uploadType path _ ->
+            downloadFile wrapper operation uploadType path
+        Authorize _ authorization ->
+            authorize wrapper operation authorization
+        UploadFile _ authorization uploadType path content ->
+            uploadFile wrapper operation authorization uploadType path content
+        DeleteFile _ authorization uploadType path ->
+            deleteFile wrapper operation authorization uploadType path
 
 fetchUrl : String -> ((Result Http.Error String) -> msg) -> Cmd msg
 fetchUrl url wrapper =
@@ -63,20 +61,8 @@ httpGetString url =
         , withCredentials = False
         }
 
-settingsPath : String
-settingsPath =
-    "settings.json"
-
-uploadPath : UploadType -> String -> String
-uploadPath uploadType path =
-    case uploadType of
-        Settings ->
-            settingsPath
-        _ ->
-            (uploadTypeToString uploadType) ++ "/" ++ path
-
-downloadFile : BackendOperation -> BackendWrapper msg -> UploadType -> String -> Cmd msg
-downloadFile operation wrapper uploadType path =
+downloadFile : BackendWrapper msg -> BackendOperation -> UploadType -> String -> Cmd msg
+downloadFile wrapper operation uploadType path =
     let url = uploadPath uploadType path
         wrap = (\res ->
                     case res of
@@ -85,7 +71,7 @@ downloadFile operation wrapper uploadType path =
                             <| Err (toString err, operation)
                         Ok string ->
                             wrapper
-                            <| Ok (DownloadFile uploadType path <| Just string)
+                            <| Ok (DownloadFile state uploadType path <| Just string)
                )
     in
         fetchUrl url wrap
@@ -133,8 +119,8 @@ httpWrapper operation wrapper result =
                 else
                     Err ("Bad return value: " ++ ok, operation)
 
-authorize : BackendOperation -> BackendWrapper msg -> Authorization -> Cmd msg
-authorize operation wrapper authorization =
+authorize : BackendWrapper msg -> BackendOperation -> Authorization -> Cmd msg
+authorize wrapper operation authorization =
     Http.send (httpWrapper operation wrapper)
         <| httpGetWithAuthorization
             (log "Authorizing with" helloScript) authorization
@@ -151,8 +137,8 @@ httpPost url authorization body =
         , withCredentials = False
         }
 
-uploadFile : BackendOperation -> BackendWrapper msg -> Authorization -> UploadType -> String -> String -> Cmd msg
-uploadFile operation wrapper authorization uploadType path content =
+uploadFile : BackendWrapper msg -> BackendOperation -> Authorization -> UploadType -> String -> String -> Cmd msg
+uploadFile wrapper operation authorization uploadType path content =
     Http.send (httpWrapper operation wrapper)
         <| httpPost (log "Posting with" uploadScript) authorization
         <| Http.multipartBody
@@ -161,8 +147,8 @@ uploadFile operation wrapper authorization uploadType path content =
             , Http.stringPart "content" content
             ]
 
-deleteFile : BackendOperation -> BackendWrapper msg -> Authorization -> UploadType -> String -> Cmd msg
-deleteFile operation wrapper authorization uploadType path =
+deleteFile : BackendWrapper msg -> BackendOperation -> Authorization -> UploadType -> String -> Cmd msg
+deleteFile wrapper operation authorization uploadType path =
     Task.attempt (\_ -> wrapper
                       <| Err ("DeleteFile not yet implemented", operation)
                  )
