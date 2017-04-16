@@ -12,7 +12,7 @@ Note that there's no directory listing operation. That's intentional. I don't wa
 
 ## Backends
 
-I currently plan only two backends:
+I currently plan only three backends:
 
 1. [`Xossbow.Backend.ApachePost`](src/Xossbow/Backend/ApachePost.elm)
 
@@ -29,6 +29,12 @@ I currently plan only two backends:
    mechanism, so I'll have to implement that. Since I want Xossbow to
    remain pure Elm, runnable in `elm-reactor` (except for the
    server-side scripts), I'll have to write the update code myself.
+
+3. [`Xossbow.Backend.RamDict`](src/Xossbow/Backend/RamDict.elm)
+
+   This backend is for testing. It does reads using the `ApachePost`
+   backend, and writes to an in-memory `Dict`. It forced me to realize
+   that a backend might need state, so they now can.
 
 It appears that Evan is working on [pluggable Elm modules](https://groups.google.com/d/msg/elm-dev/qdu3NqOqGrY/_jRl5ROiBAAJ), which can be
 loaded after an application starts. If so, that will enable more
