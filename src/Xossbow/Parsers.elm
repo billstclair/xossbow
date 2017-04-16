@@ -11,7 +11,7 @@
 
 module Xossbow.Parsers exposing ( parseNode, nodeParser
                                 , parsePlist, plistParser
-                                , encodeNode, nodeToPlist, encodePlist
+                                , encodeNode, nodeToPlist, encodePlist, mergePlists
                                 , parseValue, valueParser
                                 , parseKeyColonValue, keyColonValueParser
                                 , escapeValue
@@ -25,6 +25,7 @@ import Xossbow.Types as Types
 
 import Date exposing ( Date )
 import Time exposing ( Time )
+import List.Extra as LE
 
 import Parser exposing ( Parser, Error, Count(..)
                        , (|.), (|=)
@@ -262,9 +263,31 @@ strippedPlist : Plist -> Plist
 strippedPlist plist =
     removePlistDefaults emptyPlist plist
 
+-- Add properties in old missing from new to the end of new.
+mergePlists : List (String, String) -> List (String, String) -> List (String, String)
+mergePlists old new =
+    let loop = (\oldTail added ->
+                    case oldTail of
+                        [] ->
+                            if added == [] then
+                                new
+                            else
+                                List.append new <| List.reverse added
+                        first :: rest ->
+                            let (k, _) = first
+                            in
+                                case LE.find (\(nk, _) -> k == nk) new of
+                                    Just _ ->
+                                        loop rest added
+                                    Nothing ->
+                                        loop rest <| first :: added
+               )
+    in
+        loop old []
+
 encodeNode : Node msg -> String
 encodeNode node =
-    ( encodePlist <| strippedPlist (nodeToPlist node) )
+    ( encodePlist <| strippedPlist (mergePlists node.plist <| nodeToPlist node) )
     ++ "\n"
     ++ (if "\n" == (String.left 1 node.rawContent) then "" else "\n")
     ++ node.rawContent
@@ -280,7 +303,14 @@ testNode1 =
 
 testNode : Node msg
 testNode =
-    encodeNode testNode1
+    encodeNode { testNode1
+                     | plist = List.append
+                                 testNode1.plist
+                                 [ ("permindex", "20")
+                                 , ("previous", "10")
+                                 , ("next", "30")
+                                 ]
+               }
         |> parseNode
         |> Result.withDefault emptyNode
 
