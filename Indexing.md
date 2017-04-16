@@ -239,7 +239,7 @@ One very interesting property of this scheme is that the same files that are use
     { version: "1"
     , title: "Hello Xossbow"
     , author: "Bill St. Clair"
-    , tags: "[\"blog\"]
+    , tags: "blog"
     }
     
     This is the first post in the [["#xossbow"]] blog.
@@ -250,7 +250,7 @@ One very interesting property of this scheme is that the same files that are use
     { version: "1"
     , title: "From the Mouths of Babes"
     , author: "Bill St. Clair"
-    , tags: "[\"blog\", \"stories\"]"
+    , tags: ""blog,stories"
     }
     
     This is a true story. None of the names have been changed.

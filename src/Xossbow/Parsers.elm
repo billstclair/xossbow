@@ -55,6 +55,7 @@ makeNode plist rawContent =
         |> setPath
         |> setAuthor
         |> setTime
+        |> setTags
         |> setContentType
         |> Tuple.second
 
@@ -115,6 +116,15 @@ setTime pn =
                      node
                  Ok int ->
                      { node | time = int }
+        )
+
+setTags : (Plist, Node msg) -> (Plist, Node msg)
+setTags pn =
+    setField "tags" pn
+        (\value node ->
+             { node | tags
+                   = String.split "," value
+             }
         )
 
 setContentType : (Plist, Node msg) -> (Plist, Node msg)
@@ -230,6 +240,7 @@ nodeToPlist node =
     , ( "path", node.path )
     , ( "author", node.author )
     , ( "time", toString node.time )
+    , ( "tags", String.join "," node.tags )
     , ( "contentType", contentTypeToString node.contentType )
     ]
 
@@ -298,6 +309,7 @@ testNode1 =
         | title = "I \"Loved\" Led Zeppelin!"
         , path = "i-loved-led-zeppelin"
         , author = "Joe"
+        , tags = ["blog", "stories"]
         , rawContent = "I saw Led Zeppelin in 1973. Yow! They rocked!"
     }
 
