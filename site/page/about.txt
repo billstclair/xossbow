@@ -13,7 +13,7 @@ The "index" link in the sidebar goes to the index page, as does clicking on the 
 
 The "play" link in the sidebar goes to a page where you can enter Markdown and JSON and see how they parse and evaluate.
 
-The "docs" link in the sidebar goes to the index of the Xossbow user documentation."
+The "docs" link in the sidebar goes to the index of the Xossbow user documentation.
 
 The "templates", "pages", "settings", and "stylesheets" links in the sidebar can be used to inspect the JSON, Markdown, and CSS that define this site.
 
