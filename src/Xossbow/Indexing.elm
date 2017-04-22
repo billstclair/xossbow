@@ -24,11 +24,17 @@ import Dict exposing ( Dict )
 type IndexingState msg
     = TheState (IndexingRecord msg)
 
+type Awaiting msg
+  = AwaitingNothing
+  | AwaitingAdd String (Node msg)
+  | AwaitingRemove String (Node msg)
+  | AwaitingWrite (Node msg) (Awaiting msg)
+
+
 type alias IndexingRecord msg =
     { node : Node msg
     , result : Maybe BackendResult
-    , indices : Dict String (Node msg)
-    , reads : List String
+    , awaiting : Awaiting msg
     , adds : List String
     , removes : List String
     }
@@ -61,8 +67,7 @@ updateIndices : Backend msg -> IndexingWrapper msg -> Node msg -> Set String -> 
 updateIndices backend wrapper node added removed =
     TheState { node = node
              , result = Nothing
-             , indices = Dict.empty
-             , reads = Set.toList <| Set.union added removed
+             , awaiting = AwaitingNothing 
              , adds = Set.toList added
              , removes = Set.toList removed
              }
@@ -73,39 +78,35 @@ or `continueIndexing`.
 -}
 continueIndexing : Backend msg -> IndexingWrapper msg -> IndexingState msg -> Cmd msg
 continueIndexing backend wrapper (TheState state) =
-    let state2 = processResult state.result state
+    let (state2, cmd) = processResult state.result state.awaiting state
     in
-        case state.reads of
-            tag :: rest ->
-                readTag backend wrapper tag
-                    { state2 | reads = rest }
-            [] ->
-                case state.adds of
+        if cmd /= Cmd.none then
+          cmd
+        else
+          case state.adds of
+              tag :: rest ->
+                readIndex backend wrapper tag
+                  { state2
+                    | adds = rest
+                    , awaiting = AwaitingAdd tag state2.node}
+              [] ->
+                case state.removes of
                     tag :: rest ->
-                       addTag backend wrapper tag
-                           { state2 | adds = rest }
+                      readIndex backend wrapper tag
+                        { state2
+                          | removes = rest
+                          , awaiting = AwaitingRemove tag state2.node}
                     [] ->
-                        case state.removes of
-                            tag :: rest ->
-                                removeTag backend wrapper tag
-                                    { state2 | removes = rest }
-                            [] ->
-                                Cmd.none
+                      Cmd.none
 
--- TODO: add a read node to indices
+-- TODO: update and write out read result.
+-- Process errors on write result
 -- Eventually: do something reasonable about errors
-processResult : Maybe BackendResult -> IndexingRecord msg -> IndexingRecord msg
-processResult result state =
-    state
+-- Eventually: send along a hash of the old value, for collision detection.
+processResult : Maybe BackendResult -> Awaiting msg -> IndexingRecord msg -> (IndexingRecord msg, Cmd msg)
+processResult result awaiting state =
+    (state, Cmd.none)
 
-readTag : Backend msg -> IndexingWrapper msg -> String -> IndexingRecord msg -> Cmd msg
-readTag backend wrapper tag state =
-    Cmd.none
-
-addTag : Backend msg -> IndexingWrapper msg -> String -> IndexingRecord msg -> Cmd msg
-addTag backend wrapper tag state =
-    Cmd.none
-
-removeTag : Backend msg -> IndexingWrapper msg -> String -> IndexingRecord msg -> Cmd msg
-removeTag backend wrapper tag state =
+readIndex : Backend msg -> IndexingWrapper msg -> String -> IndexingRecord msg -> Cmd msg
+readIndex backend wrapper tag state =
     Cmd.none
