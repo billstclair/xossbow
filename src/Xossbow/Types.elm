@@ -42,7 +42,7 @@ type alias Node msg =
     , path : String
     , author : String
     , time : Time
-    , tags : List String
+    , indices : Dict String String
     , contentType : ContentType
     , rawContent : String
     , content : Atom msg
@@ -59,7 +59,7 @@ emptyNode =
     , path = "nada"
     , author = "Unknown"
     , time = -433540800000 + (8 * 3600 * 1000)
-    , tags = []
+    , indices = Dict.empty
     , contentType = Markdown
     , rawContent = "You were expecting maybe a treatise?"
     , content = ListAtom []

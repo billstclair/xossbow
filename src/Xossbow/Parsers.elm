@@ -26,6 +26,9 @@ import Xossbow.Types as Types
 import Date exposing ( Date )
 import Time exposing ( Time )
 import List.Extra as LE
+import Json.Decode as JD
+import Json.Encode as JE exposing ( Value )
+import Dict exposing ( Dict )
 
 import Parser exposing ( Parser, Error, Count(..)
                        , (|.), (|=)
@@ -55,7 +58,7 @@ makeNode plist rawContent =
         |> setPath
         |> setAuthor
         |> setTime
-        |> setTags
+        |> setIndices
         |> setContentType
         |> Tuple.second
 
@@ -118,14 +121,23 @@ setTime pn =
                      { node | time = int }
         )
 
-setTags : (Plist, Node msg) -> (Plist, Node msg)
-setTags pn =
-    setField "tags" pn
+parseIndices : String -> Dict String String
+parseIndices json =
+    case JD.decodeString (JD.keyValuePairs JD.string) json of
+        Err _ ->
+            Dict.empty
+        Ok pairs ->
+            Dict.fromList pairs
+
+setIndices : (Plist, Node msg) -> (Plist, Node msg)
+setIndices pn =
+    setField "indices" pn
         (\value node ->
-             { node | tags
-                   = String.split "," value
+             { node | indices
+                   = parseIndices value
              }
         )
+
 
 setContentType : (Plist, Node msg) -> (Plist, Node msg)
 setContentType pn =
@@ -230,6 +242,12 @@ nonWhitespaceOrChars chars char =
 --- Encoders
 ---
 
+indicesEncoder : Dict String String -> Value
+indicesEncoder dict =
+    Dict.toList dict
+        |> List.map (\(k,v) -> (k, JE.string v))
+        |> JE.object        
+
 nodeToPlist : Node msg -> Plist
 nodeToPlist node =
     [ ( "version", toString node.version )
@@ -240,7 +258,7 @@ nodeToPlist node =
     , ( "path", node.path )
     , ( "author", node.author )
     , ( "time", toString node.time )
-    , ( "tags", String.join "," node.tags )
+    , ( "indices", JE.encode 0 <| indicesEncoder node.indices )
     , ( "contentType", contentTypeToString node.contentType )
     ]
 
@@ -309,7 +327,7 @@ testNode1 =
         | title = "I \"Loved\" Led Zeppelin!"
         , path = "i-loved-led-zeppelin"
         , author = "Joe"
-        , tags = ["blog", "stories"]
+        , indices = Dict.fromList [("blog", "30"), ("stories", "10")]
         , rawContent = "I saw Led Zeppelin in 1973. Yow! They rocked!"
     }
 

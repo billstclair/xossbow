@@ -139,9 +139,22 @@ And only the fields copied by `Xossbow.Parsers.nodeToPlist` are ever saved:
 
 ## Index files
 
-The current `index.txt` gives a clue. The plan is to be able to "tag" each post, with as many tags as you want. Each tag will have its own directory, "`tag/<tag-name>`", with an `index.txt` file whose `title` describes the tag, and whose contents is a list of the most recent posts with that tag. Previous and next links give you a way to navigate to older, and then younger, index pages.
+The current `index.txt` gives a clue. The plan is to be able to "tag" each post, with as many tags as you want. Each tag will have its own directory, "`tag/<tag-name>`", with an `index.txt` file whose `title` describes the tag, and whose contents is the inclusion of the most recent index file with that tag. Previous and next links give you a way to navigate to older, and then younger, index pages.
 
 `site/tag/blog/index.txt`:
+
+    { version: "1"
+    , nodeTemplate: "index"
+    , title: "Blog"
+    , description: "[\"$settings.siteDescription\"]"
+    , author: "Bill St. Clair"
+    , contentType: "Json"
+    }
+    
+    [ "@tag/blog/30"
+    ]
+
+`site/tag/blog/30.txt`:
     
     { version: "1"
     , nodeTemplate: "index"
@@ -206,7 +219,20 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
     , "@blog" 
     ]
 
-`site/tag/stories/index.txt`:
+`site/tag/stories/index.txt`
+    { version: "1"
+    , nodeTemplate: "index"
+    , title: "Stories"
+    , description: "Stories I've Written and Collected"
+    , author: "Bill St. Clair"
+    , contentType: "Json"
+    }
+    
+    [ "@tag/stories/10"
+    ]
+
+
+`site/blog/stories/10.txt`:
 
     { version: "1"
     , nodeTemplate: "index"
@@ -223,7 +249,7 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
     , "@stories/inshallah" 
     ]
 
-`site/tags.txt`:
+`site/tag/index.txt`:
 
     { version: "1"
     , nodeTemplate: "tagsIndex"
@@ -233,12 +259,11 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
     , contentType: "Json"
     }
     
-    [ ["@tag/blog","Blog"],
-      ["@tag/stories","Stories"]
+    [ ["@tag/blog/","Blog"],
+      ["@tag/stories/","Stories"]
     ]
 
-One very interesting property of this scheme is that the same files that are used to render the index pages for the web contain all the information necessary to find all the posts for each tag. The posts also need to know their tags. There will be a default tag list property in "[`settings.json`](site/settings.json)", named perhaps "`defaultTags`". And a new "`indices`" property for posts:
-
+One very interesting property of this scheme is that the same files that are used to render the index pages for the web contain all the information necessary to find all the posts for each tag. The posts also need to know their tags. There will be a default tag property in "[`settings.json`](site/settings.json)", named perhaps "`defaultTags`". And a new "`indices`" property for posts, which will always point to the permanent index file, NEVER the `"index"` file:
 
 [`site/page/blog.txt`](site/page/blog.txt):
 
@@ -256,7 +281,7 @@ One very interesting property of this scheme is that the same files that are use
     { version: "1"
     , title: "From the Mouths of Babes"
     , author: "Bill St. Clair"
-    , indices: "{blog: \"20\", stories: \"index\"}"
+    , indices: "{blog: \"20\", stories: \"10\"}"
     }
     
     This is a true story. None of the names have been changed.

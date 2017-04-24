@@ -99,10 +99,26 @@ continueIndexing backend wrapper (TheState state) =
                     [] ->
                       Cmd.none
 
+tagsFile : String
+tagsFile =
+    "tag/index.txt"
+
+tagDir : String -> String
+tagDir tag =
+    "tag/" ++ tag ++ "/"
+
+tagIndexFile : String -> String
+tagIndexFile tag =
+    (tagDir tag) ++ "index.txt"
+
+tagFile : String -> String -> String
+tagFile tag name =
+    (tagDir tag) ++ name ++ ".txt"
+
 -- TODO: update and write out read result.
 -- Process errors on write result
 -- Eventually: do something reasonable about errors
--- Eventually: send along a hash of the old value, for collision detection.
+-- Eventually: send along a hash of the old string, for collision detection.
 processResult : Maybe BackendResult -> Awaiting msg -> IndexingRecord msg -> (IndexingRecord msg, Cmd msg)
 processResult result awaiting state =
     (state, Cmd.none)
