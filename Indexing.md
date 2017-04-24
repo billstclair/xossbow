@@ -141,7 +141,7 @@ And only the fields copied by `Xossbow.Parsers.nodeToPlist` are ever saved:
 
 The current `index.txt` gives a clue. The plan is to be able to "tag" each post, with as many tags as you want. Each tag will have its own directory, "`tag/<tag-name>`", with an `index.txt` file whose `title` describes the tag, and whose contents is a list of the most recent posts with that tag. Previous and next links give you a way to navigate to older, and then younger, index pages.
 
-`site/tag/blog/index.txt` (and `30.txt`):
+`site/tag/blog/index.txt`:
     
     { version: "1"
     , nodeTemplate: "index"
@@ -167,7 +167,7 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
     , contentType: "Json"
     , permindex: "20"
     , previous: "10"
-    , next: "30"
+    , next: "index"
     }
     
     [ "@post20"
@@ -206,7 +206,7 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
     , "@blog" 
     ]
 
-`site/tag/stories/index.txt` (and `10.txt`):
+`site/tag/stories/index.txt`:
 
     { version: "1"
     , nodeTemplate: "index"
@@ -237,7 +237,7 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
       ["@tag/stories","Stories"]
     ]
 
-One very interesting property of this scheme is that the same files that are used to render the index pages for the web contain all the information necessary to find all the posts for each tag. The posts also need to know their tags. There will be a default tag list property in "[`settings.json`](site/settings.json)", named perhaps "`defaultTags`". And a new "`tags`" property for posts:
+One very interesting property of this scheme is that the same files that are used to render the index pages for the web contain all the information necessary to find all the posts for each tag. The posts also need to know their tags. There will be a default tag list property in "[`settings.json`](site/settings.json)", named perhaps "`defaultTags`". And a new "`indices`" property for posts:
 
 
 [`site/page/blog.txt`](site/page/blog.txt):
@@ -245,7 +245,7 @@ One very interesting property of this scheme is that the same files that are use
     { version: "1"
     , title: "Hello Xossbow"
     , author: "Bill St. Clair"
-    , tags: "blog"
+    , indices: "{blog: \"10\"}"
     }
     
     This is the first post in the [["#xossbow"]] blog.
@@ -256,13 +256,13 @@ One very interesting property of this scheme is that the same files that are use
     { version: "1"
     , title: "From the Mouths of Babes"
     , author: "Bill St. Clair"
-    , tags: ""blog,stories"
+    , indices: "{blog: \"20\", stories: \"index\"}"
     }
     
     This is a true story. None of the names have been changed.
     ...
 
-Note that though the values in the property list at the top of a file are strings, for the `tags` field, that string will be JSON.
+Note that though the values in the property list at the top of a file are strings, for the `indices` field, that string will be JSON.
 
 There's one more thing to do. Though this is all well and good for running a Xossbow site, since it's all rendered with JavaScript, there's nothing for Google to index. Hence, if the user so chooses, Xossbow will write HTML version of the index files that link to the text files for the content, along with actual links to the site.
 

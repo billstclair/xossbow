@@ -40,7 +40,7 @@ type alias IndexingRecord msg =
     }
 
 type alias IndexingWrapper msg =
-    IndexingState -> msg
+    IndexingState msg -> msg
 
 {-| Call when a node is created or changed.
 
@@ -107,6 +107,18 @@ processResult : Maybe BackendResult -> Awaiting msg -> IndexingRecord msg -> (In
 processResult result awaiting state =
     (state, Cmd.none)
 
+wrapBackendResult : BackendResult -> IndexingWrapper msg -> IndexingRecord msg -> msg
+wrapBackendResult result indexingWrapper state =
+  indexingWrapper <| TheState { state | result = Just result }
+
 readIndex : Backend msg -> IndexingWrapper msg -> String -> IndexingRecord msg -> Cmd msg
 readIndex backend wrapper tag state =
-    Cmd.none
+  let wrap = (\res -> wrapBackendResult res wrapper state)
+  in
+      Types.downloadFile backend wrap Page <| indexPath tag
+
+-- This is wrong. Need the node to point to its index file
+indexPath : String -> String
+indexPath string =
+  string
+
