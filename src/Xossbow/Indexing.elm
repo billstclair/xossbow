@@ -26,8 +26,8 @@ type IndexingState msg
 
 type Awaiting msg
   = AwaitingNothing
-  | AwaitingAdd String (Node msg)
-  | AwaitingRemove String (Node msg)
+  | AwaitingAdd (String, String) (Node msg)
+  | AwaitingRemove (String, String) (Node msg)
   | AwaitingWrite (Node msg) (Awaiting msg)
 
 
@@ -35,8 +35,8 @@ type alias IndexingRecord msg =
     { node : Node msg
     , result : Maybe BackendResult
     , awaiting : Awaiting msg
-    , adds : List String
-    , removes : List String
+    , adds : List (String, String)
+    , removes : List (String, String)
     }
 
 type alias IndexingWrapper msg =
@@ -51,25 +51,23 @@ index : Backend msg -> IndexingWrapper msg -> Maybe (Node msg) -> Node msg -> Cm
 index backend wrapper oldNode newNode =
     case oldNode of
         Nothing ->
-            let added = Set.fromList newNode.tags
-                removed = Set.empty
+            let added = newNode.indices
+                removed = Dict.empty
             in
                 updateIndices backend wrapper newNode added removed
         Just old ->
-            let oldSet = Set.fromList old.tags
-                newSet = Set.fromList newNode.tags
-                added = Set.diff newSet oldSet
-                removed = Set.diff oldSet newSet
+            let added = newNode.indices
+                removed = Dict.diff old.indices newNode.indices
             in
                 updateIndices backend wrapper newNode added removed
 
-updateIndices : Backend msg -> IndexingWrapper msg -> Node msg -> Set String -> Set String -> Cmd msg
+updateIndices : Backend msg -> IndexingWrapper msg -> Node msg -> Dict String String -> Dict String String -> Cmd msg
 updateIndices backend wrapper node added removed =
     TheState { node = node
              , result = Nothing
              , awaiting = AwaitingNothing 
-             , adds = Set.toList added
-             , removes = Set.toList removed
+             , adds = Dict.toList added
+             , removes = Dict.toList removed
              }
         |> continueIndexing backend wrapper
 
@@ -84,18 +82,18 @@ continueIndexing backend wrapper (TheState state) =
           cmd
         else
           case state.adds of
-              tag :: rest ->
-                readIndex backend wrapper tag
+              pair :: rest ->
+                readIndex backend wrapper pair
                   { state2
                     | adds = rest
-                    , awaiting = AwaitingAdd tag state2.node}
+                    , awaiting = AwaitingAdd pair state2.node}
               [] ->
                 case state.removes of
-                    tag :: rest ->
-                      readIndex backend wrapper tag
+                    pair :: rest ->
+                      readIndex backend wrapper pair
                         { state2
                           | removes = rest
-                          , awaiting = AwaitingRemove tag state2.node}
+                          , awaiting = AwaitingRemove pair state2.node}
                     [] ->
                       Cmd.none
 
@@ -127,8 +125,8 @@ wrapBackendResult : BackendResult -> IndexingWrapper msg -> IndexingRecord msg -
 wrapBackendResult result indexingWrapper state =
   indexingWrapper <| TheState { state | result = Just result }
 
-readIndex : Backend msg -> IndexingWrapper msg -> String -> IndexingRecord msg -> Cmd msg
-readIndex backend wrapper tag state =
+readIndex : Backend msg -> IndexingWrapper msg -> (String, String) -> IndexingRecord msg -> Cmd msg
+readIndex backend wrapper (tag, file) state =
   let wrap = (\res -> wrapBackendResult res wrapper state)
   in
       Types.downloadFile backend wrap Page <| indexPath tag
