@@ -18,7 +18,6 @@ import Xossbow.Types as Types exposing ( Node, Plist, UploadType(..)
                                        , get, downloadFile, uploadFile
                                        )
 
-import Set exposing ( Set )
 import Dict exposing ( Dict )
 
 type IndexingState msg
@@ -29,10 +28,12 @@ type Awaiting msg
   | AwaitingAdd (String, String) (Node msg)
   | AwaitingRemove (String, String) (Node msg)
   | AwaitingWrite (Node msg) (Awaiting msg)
+  | AwaitingIndex String (Awaiting msg)
 
 
 type alias IndexingRecord msg =
-    { node : Node msg
+    { perPage : Int
+    , node : Node msg
     , result : Maybe BackendResult
     , awaiting : Awaiting msg
     , adds : List (String, String)
@@ -47,23 +48,24 @@ type alias IndexingWrapper msg =
 Initiates the updates necessary to index a new or changed file.
 Call after writing the file.
 -}
-index : Backend msg -> IndexingWrapper msg -> Maybe (Node msg) -> Node msg -> Cmd msg
-index backend wrapper oldNode newNode =
+index : Backend msg -> IndexingWrapper msg -> Int -> Maybe (Node msg) -> Node msg -> Cmd msg
+index backend wrapper perPage oldNode newNode =
     case oldNode of
         Nothing ->
             let added = newNode.indices
                 removed = Dict.empty
             in
-                updateIndices backend wrapper newNode added removed
+                updateIndices backend wrapper perPage newNode added removed
         Just old ->
-            let added = newNode.indices
+            let added = newNode.indices --always ensure membership
                 removed = Dict.diff old.indices newNode.indices
             in
-                updateIndices backend wrapper newNode added removed
+                updateIndices backend wrapper perPage newNode added removed
 
-updateIndices : Backend msg -> IndexingWrapper msg -> Node msg -> Dict String String -> Dict String String -> Cmd msg
-updateIndices backend wrapper node added removed =
-    TheState { node = node
+updateIndices : Backend msg -> IndexingWrapper msg -> Int -> Node msg -> Dict String String -> Dict String String -> Cmd msg
+updateIndices backend wrapper perPage node added removed =
+    TheState { perPage = perPage
+             , node = node
              , result = Nothing
              , awaiting = AwaitingNothing 
              , adds = Dict.toList added
@@ -126,13 +128,17 @@ wrapBackendResult result indexingWrapper state =
   indexingWrapper <| TheState { state | result = Just result }
 
 readIndex : Backend msg -> IndexingWrapper msg -> (String, String) -> IndexingRecord msg -> Cmd msg
-readIndex backend wrapper (tag, file) state =
+readIndex backend wrapper pair state =
   let wrap = (\res -> wrapBackendResult res wrapper state)
+      (tag, name) = pair
   in
-      Types.downloadFile backend wrap Page <| indexPath tag
-
--- This is wrong. Need the node to point to its index file
-indexPath : String -> String
-indexPath string =
-  string
-
+      if name == "" then
+          let path = tagIndexFile tag
+              state2 =
+                  { state | awaiting = AwaitingIndex tag state.awaiting }
+          in
+              Types.downloadFile backend wrap Page path
+      else
+          let path = tagFile tag name
+          in
+              Types.downloadFile backend wrap Page path
