@@ -121,7 +121,15 @@ tagFile tag name =
 -- Eventually: send along a hash of the old string, for collision detection.
 processResult : Maybe BackendResult -> Awaiting msg -> IndexingRecord msg -> (IndexingRecord msg, Cmd msg)
 processResult result awaiting state =
-    (state, Cmd.none)
+    case result of
+        Nothing ->
+            (state, Cmd.none)
+        Just res ->
+            case res of
+                Err err ->
+                    (state, Cmd.none)
+                _ ->
+                    (state, Cmd.none)
 
 wrapBackendResult : BackendResult -> IndexingWrapper msg -> IndexingRecord msg -> msg
 wrapBackendResult result indexingWrapper state =
@@ -129,7 +137,7 @@ wrapBackendResult result indexingWrapper state =
 
 readIndex : Backend msg -> IndexingWrapper msg -> (String, String) -> IndexingRecord msg -> Cmd msg
 readIndex backend wrapper pair state =
-  let wrap = (\res -> wrapBackendResult res wrapper state)
+  let wrap = (\state res -> wrapBackendResult res wrapper state)
       (tag, name) = pair
   in
       if name == "" then
@@ -137,8 +145,8 @@ readIndex backend wrapper pair state =
               state2 =
                   { state | awaiting = AwaitingIndex tag state.awaiting }
           in
-              Types.downloadFile backend wrap Page path
+              downloadFile backend (wrap state2) Page path
       else
           let path = tagFile tag name
           in
-              Types.downloadFile backend wrap Page path
+              downloadFile backend (wrap state) Page path

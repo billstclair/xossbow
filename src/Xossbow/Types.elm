@@ -15,7 +15,8 @@ module Xossbow.Types exposing ( Node, nodeVersion, emptyNode
                               , State(..)
                               , Backend
                               , UploadType(..), Authorization
-                              , BackendOperation(..), BackendResult, BackendWrapper
+                              , BackendOperation(..)
+                              , BackendError(..), BackendResult, BackendWrapper
                               , stateDict, backendDict, operationDict
                               , updateState, updateStateFromResult
                               , operate, downloadFile
@@ -127,8 +128,13 @@ type BackendOperation
     | UploadFile State Authorization UploadType String String
     | DeleteFile State Authorization UploadType String
 
+type BackendError
+    = AuthorizationError
+    | NotFoundError
+    | OtherBackendError String
+
 type alias BackendResult =
-    Result (String, BackendOperation) BackendOperation
+    Result (BackendError, BackendOperation) BackendOperation
 
 type alias BackendWrapper msg =
     BackendResult -> msg

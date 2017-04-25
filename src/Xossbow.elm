@@ -449,7 +449,8 @@ templateFetchDone name loaders result model =
                 { model
                     | error =
                       Just
-                      <| "Error fetching template " ++ name ++ ": " ++ err
+                      <| "Error fetching template " ++ name ++ ": " ++
+                          (toString err)
                 }
         Ok (Types.DownloadFile _ _ _ (Just json)) ->
             case receiveTemplate name json loaders of
@@ -576,7 +577,8 @@ pageFetchDone name loaders result model =
                 { model
                     | error =
                         Just
-                        <| "Error fetching page " ++ name ++ ": " ++ err
+                        <| "Error fetching page " ++ name ++ ": " ++
+                            (toString err)
                 }
         Ok (Types.DownloadFile _ _ _ (Just text)) ->
             let pageres = parsePage name text

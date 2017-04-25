@@ -12,7 +12,8 @@
 module Xossbow.Backend.RamDict exposing ( backend )
 
 import Xossbow.Types exposing ( State(..), UploadType(..), Authorization
-                              , BackendOperation(..), BackendWrapper, Backend
+                              , BackendOperation(..)
+                              , BackendError(..), BackendWrapper, Backend
                               , uploadPath, stateDict
                               )
 
@@ -78,7 +79,9 @@ authorize wrapper operation authorization =
         task = if succeed then
                    Task.succeed <| operation
                else
-                   Task.fail <| ("Bad username or password.", operation)
+                   Task.fail <| (OtherBackendError "Bad username or password."
+                                , operation
+                                )
     in
         Task.attempt wrapper task                  
 

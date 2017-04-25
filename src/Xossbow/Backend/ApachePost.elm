@@ -12,7 +12,8 @@
 module Xossbow.Backend.ApachePost exposing ( backend )
 
 import Xossbow.Types exposing ( State(..), UploadType(..), Authorization
-                              , BackendOperation(..), BackendWrapper, Backend
+                              , BackendOperation(..)
+                              , BackendError(..), BackendWrapper, Backend
                               , uploadTypeToString, settingsPath, uploadPath
                               )
 
@@ -61,6 +62,21 @@ httpGetString url =
         , withCredentials = False
         }
 
+toBackendError : Http.Error -> BackendError
+toBackendError error =
+    case error of
+        Http.BadStatus response ->
+            let code = response.status.code
+            in
+                if code == 401 then
+                    AuthorizationError
+                else if code == 404 then
+                    NotFoundError
+                else
+                    OtherBackendError <| toString error
+        _ ->
+            OtherBackendError <| toString error
+
 downloadFile : BackendWrapper msg -> BackendOperation -> UploadType -> String -> Cmd msg
 downloadFile wrapper operation uploadType path =
     let url = uploadPath uploadType path
@@ -68,7 +84,7 @@ downloadFile wrapper operation uploadType path =
                     case res of
                         Err err ->
                             wrapper
-                            <| Err (toString err, operation)
+                            <| Err (toBackendError err, operation)
                         Ok string ->
                             wrapper
                             <| Ok (DownloadFile state uploadType path <| Just string)
@@ -112,12 +128,12 @@ httpWrapper operation wrapper result =
     wrapper <|
         case result of
             Err err ->
-                Err (toString err, operation)
+                Err (toBackendError err, operation)
             Ok ok ->
                 if String.trim ok == "OK" then
                     Ok operation
                 else
-                    Err ("Backend error: " ++ ok, operation)
+                    Err (OtherBackendError <| "Backend error: " ++ ok, operation)
 
 authorize : BackendWrapper msg -> BackendOperation -> Authorization -> Cmd msg
 authorize wrapper operation authorization =
@@ -150,6 +166,8 @@ uploadFile wrapper operation authorization uploadType path content =
 deleteFile : BackendWrapper msg -> BackendOperation -> Authorization -> UploadType -> String -> Cmd msg
 deleteFile wrapper operation authorization uploadType path =
     Task.attempt (\_ -> wrapper
-                      <| Err ("DeleteFile not yet implemented", operation)
+                      <| Err (OtherBackendError "DeleteFile not yet implemented"
+                             , operation
+                             )
                  )
         <| Task.succeed ()

@@ -149,6 +149,7 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
     , description: "[\"$settings.siteDescription\"]"
     , author: "Bill St. Clair"
     , contentType: "Json"
+    , permindex: "30"
     }
     
     [ "@tag/blog/30"
@@ -219,13 +220,15 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
     , "@blog" 
     ]
 
-`site/tag/stories/index.txt`
+`site/tag/stories/index.txt`:
+
     { version: "1"
     , nodeTemplate: "index"
     , title: "Stories"
     , description: "Stories I've Written and Collected"
     , author: "Bill St. Clair"
     , contentType: "Json"
+    , permindex: "10"
     }
     
     [ "@tag/stories/10"
