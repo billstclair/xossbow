@@ -10,11 +10,14 @@
 ----------------------------------------------------------------------
 
 module Xossbow.Indexing exposing ( IndexingState(..), IndexingWrapper
+                                 , IndexingResult
                                  , index, continueIndexing
                                  )
 
 import Xossbow.Types as Types exposing ( Node, Plist, UploadType(..)
-                                       , Backend, BackendWrapper, BackendResult
+                                       , Backend, BackendOperation(..)
+                                       , BackendWrapper, BackendResult
+                                       , BackendError(..)
                                        , get, downloadFile, uploadFile
                                        )
 
@@ -43,12 +46,15 @@ type alias IndexingRecord msg =
 type alias IndexingWrapper msg =
     IndexingState msg -> msg
 
+type alias IndexingResult msg =
+    Result String (Cmd msg)
+
 {-| Call when a node is created or changed.
 
 Initiates the updates necessary to index a new or changed file.
 Call after writing the file.
 -}
-index : Backend msg -> IndexingWrapper msg -> Int -> Maybe (Node msg) -> Node msg -> Cmd msg
+index : Backend msg -> IndexingWrapper msg -> Int -> Maybe (Node msg) -> Node msg -> IndexingResult msg
 index backend wrapper perPage oldNode newNode =
     case oldNode of
         Nothing ->
@@ -62,7 +68,7 @@ index backend wrapper perPage oldNode newNode =
             in
                 updateIndices backend wrapper perPage newNode added removed
 
-updateIndices : Backend msg -> IndexingWrapper msg -> Int -> Node msg -> Dict String String -> Dict String String -> Cmd msg
+updateIndices : Backend msg -> IndexingWrapper msg -> Int -> Node msg -> Dict String String -> Dict String String -> IndexingResult msg
 updateIndices backend wrapper perPage node added removed =
     TheState { perPage = perPage
              , node = node
@@ -76,28 +82,32 @@ updateIndices backend wrapper perPage node added removed =
 {-| Continues indexing via the state in the wrapper passed to `index`
 or `continueIndexing`.
 -}
-continueIndexing : Backend msg -> IndexingWrapper msg -> IndexingState msg -> Cmd msg
+continueIndexing : Backend msg -> IndexingWrapper msg -> IndexingState msg -> IndexingResult msg
 continueIndexing backend wrapper (TheState state) =
-    let (state2, cmd) = processResult state.result state.awaiting state
-    in
-        if cmd /= Cmd.none then
-          cmd
-        else
-          case state.adds of
-              pair :: rest ->
-                readIndex backend wrapper pair
-                  { state2
-                    | adds = rest
-                    , awaiting = AwaitingAdd pair state2.node}
-              [] ->
-                case state.removes of
+    case processResult state.result state.awaiting state of
+        Err msg ->
+            Err msg
+        Ok (state2, cmd) ->
+            if cmd /= Cmd.none then
+                Ok cmd
+            else
+                case state.adds of
                     pair :: rest ->
-                      readIndex backend wrapper pair
-                        { state2
-                          | removes = rest
-                          , awaiting = AwaitingRemove pair state2.node}
+                        Ok <|
+                        readIndex backend wrapper pair
+                            { state2
+                                | adds = rest
+                                , awaiting = AwaitingAdd pair state2.node}
                     [] ->
-                      Cmd.none
+                        case state.removes of
+                            pair :: rest ->
+                                Ok <|
+                                readIndex backend wrapper pair
+                                    { state2
+                                        | removes = rest
+                                        , awaiting = AwaitingRemove pair state2.node}
+                            [] ->
+                                Ok Cmd.none
 
 tagsFile : String
 tagsFile =
@@ -119,17 +129,33 @@ tagFile tag name =
 -- Process errors on write result
 -- Eventually: do something reasonable about errors
 -- Eventually: send along a hash of the old string, for collision detection.
-processResult : Maybe BackendResult -> Awaiting msg -> IndexingRecord msg -> (IndexingRecord msg, Cmd msg)
+processResult : Maybe BackendResult -> Awaiting msg -> IndexingRecord msg -> Result String (IndexingRecord msg, Cmd msg)
 processResult result awaiting state =
     case result of
         Nothing ->
-            (state, Cmd.none)
+            Ok (state, Cmd.none)
         Just res ->
             case res of
+                Err (NotFoundError, operation) ->
+                    Err <| "Not found: " ++ (toString operation)
                 Err err ->
-                    (state, Cmd.none)
-                _ ->
-                    (state, Cmd.none)
+                    Err <| toString err
+                Ok operation ->
+                    case awaiting of
+                        AwaitingWrite _ _ ->
+                            Ok ( { state | awaiting = AwaitingNothing }
+                               , Cmd.none
+                               )
+                        _ ->
+                            handleDownload operation awaiting state
+
+handleDownload : BackendOperation -> Awaiting msg -> IndexingRecord msg -> Result String (IndexingRecord msg, Cmd msg)
+handleDownload operation awaiting state =
+    case operation of
+        DownloadFile backendState _ _ contents ->
+            Ok (state, Cmd.none)
+        _ ->
+            Ok (state, Cmd.none)                            
 
 wrapBackendResult : BackendResult -> IndexingWrapper msg -> IndexingRecord msg -> msg
 wrapBackendResult result indexingWrapper state =

@@ -79,9 +79,7 @@ authorize wrapper operation authorization =
         task = if succeed then
                    Task.succeed <| operation
                else
-                   Task.fail <| (OtherBackendError "Bad username or password."
-                                , operation
-                                )
+                   Task.fail (AuthorizationError, operation)
     in
         Task.attempt wrapper task                  
 

@@ -150,6 +150,8 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
     , author: "Bill St. Clair"
     , contentType: "Json"
     , permindex: "30"
+    , previous: "20"
+    , next: ""
     }
     
     [ "@tag/blog/30"
@@ -229,6 +231,8 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
     , author: "Bill St. Clair"
     , contentType: "Json"
     , permindex: "10"
+    , previous: ""
+    , next: ""
     }
     
     [ "@tag/stories/10"

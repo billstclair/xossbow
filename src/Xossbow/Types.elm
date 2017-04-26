@@ -35,19 +35,19 @@ nodeVersion =
     1
 
 type alias Node msg =
-    { version : Int
-    , comment : String
+    { version : Int             --nodeVersion
+    , comment : String          --visible only to editor
     , pageTemplate : String
     , nodeTemplate : String
     , title : String
     , path : String
     , author : String
     , time : Time
-    , indices : Dict String String
+    , indices : Dict String String -- tag -> index
     , contentType : ContentType
     , rawContent : String
     , content : Atom msg
-    , plist : Plist
+    , plist : Plist             --on backend. All properties saved.
     }
 
 emptyNode : Node msg
@@ -133,6 +133,8 @@ type BackendError
     | NotFoundError
     | OtherBackendError String
 
+-- Backends promise not to change their state if an operation
+-- returns an error
 type alias BackendResult =
     Result (BackendError, BackendOperation) BackendOperation
 
