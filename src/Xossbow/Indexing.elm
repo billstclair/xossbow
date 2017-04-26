@@ -19,6 +19,7 @@ import Xossbow.Types as Types exposing ( Node, Plist, UploadType(..)
                                        , BackendWrapper, BackendResult
                                        , BackendError(..)
                                        , get, downloadFile, uploadFile
+                                       , updateState
                                        )
 
 import Dict exposing ( Dict )
@@ -47,7 +48,7 @@ type alias IndexingWrapper msg =
     IndexingState msg -> msg
 
 type alias IndexingResult msg =
-    Result String (Cmd msg)
+    Result String (Backend msg, Cmd msg)
 
 {-| Call when a node is created or changed.
 
@@ -84,30 +85,33 @@ or `continueIndexing`.
 -}
 continueIndexing : Backend msg -> IndexingWrapper msg -> IndexingState msg -> IndexingResult msg
 continueIndexing backend wrapper (TheState state) =
-    case processResult state.result state.awaiting state of
+    case processResult backend state.result state.awaiting state of
         Err msg ->
             Err msg
-        Ok (state2, cmd) ->
+        Ok (state2, backend2, cmd) ->
             if cmd /= Cmd.none then
-                Ok cmd
+                Ok (backend2, cmd)
             else
                 case state.adds of
                     pair :: rest ->
-                        Ok <|
-                        readIndex backend wrapper pair
-                            { state2
-                                | adds = rest
-                                , awaiting = AwaitingAdd pair state2.node}
+                        Ok ( backend2
+                           , readIndex backend2 wrapper pair
+                               { state2
+                                   | adds = rest
+                                   , awaiting = AwaitingAdd pair state2.node}
+                           )
                     [] ->
                         case state.removes of
                             pair :: rest ->
-                                Ok <|
-                                readIndex backend wrapper pair
-                                    { state2
-                                        | removes = rest
-                                        , awaiting = AwaitingRemove pair state2.node}
+                                Ok ( backend2
+                                   , readIndex backend2 wrapper pair
+                                       { state2
+                                           | removes = rest
+                                           , awaiting =
+                                               AwaitingRemove pair state2.node}
+                                   )
                             [] ->
-                                Ok Cmd.none
+                                Ok (backend2, Cmd.none)
 
 tagsFile : String
 tagsFile =
@@ -129,11 +133,11 @@ tagFile tag name =
 -- Process errors on write result
 -- Eventually: do something reasonable about errors
 -- Eventually: send along a hash of the old string, for collision detection.
-processResult : Maybe BackendResult -> Awaiting msg -> IndexingRecord msg -> Result String (IndexingRecord msg, Cmd msg)
-processResult result awaiting state =
+processResult : Backend msg -> Maybe BackendResult -> Awaiting msg -> IndexingRecord msg -> Result String (IndexingRecord msg, Backend msg, Cmd msg)
+processResult backend result awaiting state =
     case result of
         Nothing ->
-            Ok (state, Cmd.none)
+            Ok (state, backend, Cmd.none)
         Just res ->
             case res of
                 Err (NotFoundError, operation) ->
@@ -144,18 +148,23 @@ processResult result awaiting state =
                     case awaiting of
                         AwaitingWrite _ _ ->
                             Ok ( { state | awaiting = AwaitingNothing }
+                               , updateState operation backend
                                , Cmd.none
                                )
                         _ ->
-                            handleDownload operation awaiting state
+                            handleDownload backend operation awaiting state
 
-handleDownload : BackendOperation -> Awaiting msg -> IndexingRecord msg -> Result String (IndexingRecord msg, Cmd msg)
-handleDownload operation awaiting state =
+handleDownload : Backend msg -> BackendOperation -> Awaiting msg -> IndexingRecord msg -> Result String (IndexingRecord msg, Backend msg, Cmd msg)
+handleDownload backend operation awaiting state =
     case operation of
-        DownloadFile backendState _ _ contents ->
-            Ok (state, Cmd.none)
+        DownloadFile _ _ _ contents ->
+            Ok (state
+               , updateState operation backend
+               ,Cmd.none)
         _ ->
-            Ok (state, Cmd.none)                            
+            Ok (state
+               , updateState operation backend
+               , Cmd.none)
 
 wrapBackendResult : BackendResult -> IndexingWrapper msg -> IndexingRecord msg -> msg
 wrapBackendResult result indexingWrapper state =
