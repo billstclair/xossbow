@@ -183,7 +183,7 @@ The current `index.txt` gives a clue. The plan is to be able to "tag" each post,
     , contentType: "Json"
     , permindex: "20"
     , previous: "10"
-    , next: "index"
+    , next: "30"
     }
     
     [ "@post20"

@@ -19,7 +19,6 @@ import Xossbow.Types as Types exposing ( Node, Plist, UploadType(..)
                                        , BackendWrapper, BackendResult
                                        , BackendError(..)
                                        , get, downloadFile, uploadFile
-                                       , updateState
                                        )
 
 import Dict exposing ( Dict )
@@ -33,7 +32,6 @@ type Awaiting msg
   | AwaitingRemove (String, String) (Node msg)
   | AwaitingWrite (Node msg) (Awaiting msg)
   | AwaitingIndex String (Awaiting msg)
-
 
 type alias IndexingRecord msg =
     { perPage : Int
@@ -69,6 +67,37 @@ index backend wrapper perPage oldNode newNode =
             in
                 updateIndices backend wrapper perPage newNode added removed
 
+{- Here are the chains of actions that can be initiated here.
+For each "added" (<tag>, <index>) pair:
+If <index> is "" (which it should always be):
+  1) Read tag/<tag>/index.txt
+  2) If it does not exist, error. It should always exist at this point.
+  3) Let <index> be the contents of tag/<tag>/index.txt
+  4) Read tag/<tag>/<index>.txt
+  5) If the number of pages in tag/<tag>/<index>.txt is less than perPage:
+    a) Add <node>.path to the front of the pages.
+    b) Write tag/<tag>/<index>.txt
+    c) Update <node>.indices to map <tag> to <index>
+    d) Write <node> to <node>.path
+     Otherwise:
+    e) <newIndex> = <index> + perPage
+    f) Write tag/<tag>/<newIndex>.txt with <node>.path as its contents
+    g) Read tag/<tag>/index.txt
+    h) Replace <index> with <newIndex> and write tag/<tag>/index.txt
+    i) Write tag/<tag>/<index>.txt with "next" set to <newIndex>
+    j) Update <node>.indices to map <tag> to <newIndex>
+    k) Write <node> to <node>.path
+
+For each "removed" (<tag>, <index>) pair:
+  1) Read tag/<tag>/<index>.txt
+  2) If it exists:
+    a) Remove <node>.path and write tag/<tag>/<index>.txt
+    b) Do something smart if <index>.txt now contains no nodes.
+       i) Update index.txt to point to the "previous" node,
+          if it currently points at <index>.
+       ii) Splice <index> out of the previous/next chain.
+       
+-}
 updateIndices : Backend msg -> IndexingWrapper msg -> Int -> Node msg -> Dict String String -> Dict String String -> IndexingResult msg
 updateIndices backend wrapper perPage node added removed =
     TheState { perPage = perPage
@@ -148,7 +177,7 @@ processResult backend result awaiting state =
                     case awaiting of
                         AwaitingWrite _ _ ->
                             Ok ( { state | awaiting = AwaitingNothing }
-                               , updateState operation backend
+                               , Types.updateState operation backend
                                , Cmd.none
                                )
                         _ ->
@@ -156,15 +185,17 @@ processResult backend result awaiting state =
 
 handleDownload : Backend msg -> BackendOperation -> Awaiting msg -> IndexingRecord msg -> Result String (IndexingRecord msg, Backend msg, Cmd msg)
 handleDownload backend operation awaiting state =
-    case operation of
-        DownloadFile _ _ _ contents ->
-            Ok (state
-               , updateState operation backend
-               ,Cmd.none)
-        _ ->
-            Ok (state
-               , updateState operation backend
-               , Cmd.none)
+    let backend2 = Types.updateState operation backend
+    in
+        case operation of
+            DownloadFile _ uploadType path contents ->
+                Ok (state
+                   , backend2
+                   ,Cmd.none)
+            _ ->
+                Ok (state
+                   , backend2
+                   , Cmd.none)
 
 wrapBackendResult : BackendResult -> IndexingWrapper msg -> IndexingRecord msg -> msg
 wrapBackendResult result indexingWrapper state =
