@@ -9,9 +9,10 @@
 --
 ----------------------------------------------------------------------
 
-module Xossbow.Actions exposing ( ActionState, Action
+module Xossbow.Actions exposing ( ActionState, Action, ActionResult
                                 , makeActionState, nextAction
                                 , getState, setState, mapState
+                                , isEmpty
                                 , pushAction, appendActions, discardAction
                                 )
 
@@ -55,6 +56,10 @@ setState state (TheActionState actionState) =
 mapState : (state -> state) -> ActionState state msg -> ActionState state msg
 mapState f (TheActionState actionState) =
     TheActionState { actionState | state = f actionState.state }
+
+isEmpty : ActionState state msg -> Bool
+isEmpty (TheActionState state) =
+    state.actions == []
 
 pushAction : Action state msg -> ActionState state msg -> ActionState state msg
 pushAction action (TheActionState actionState) =
