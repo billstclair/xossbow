@@ -50,10 +50,52 @@ type alias IndexingWrapper msg =
 type alias IndexingResult msg =
     Result (Backend msg, String) (Maybe (Backend msg), Cmd msg)
 
+{-| Create a new tag, or update the description of an existing tag.
+
+    createTag backend wrapper tag description
+-}
+createTag : Backend msg -> IndexingWrapper msg -> String -> String -> IndexingResult msg
+createTag backend wrapper tag description =
+    let record = { perPage = 10
+                 , node = Types.emptyNode
+                 , backend = backend
+                 , wrapper = wrapper
+                 , result = Nothing
+                 }
+        actions = [ readTagIndex tag
+                  , updateTagIndex tag description
+                  , readTagsIndex
+                  , updateTagsIndex tag description
+                  ]
+        state = TheState <| makeActionState record actions
+    in
+        continueIndexing state
+
+-- TODO
+updateTagIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
+updateTagIndex tag description record actionState =
+    Ok Cmd.none
+
+-- TODO
+readTagsIndex : IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
+readTagsIndex record actionState =
+    Ok Cmd.none
+
+-- TODO
+updateTagsIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
+updateTagsIndex tag description record actionState =
+    Ok Cmd.none
+
 {-| Call when a node is created or changed.
 
 Initiates the updates necessary to index a new or changed file.
 Call after writing the file.
+
+Use the returned value to update the `Backend` in your model, or to return the
+`Cmd` from your `update` function.
+
+When you get a message resulting from the `IndexingWrapper` arg, pass the
+wrapped `IndexingState` to `continueIndexing`.
 -}
 index : Backend msg -> IndexingWrapper msg -> Int -> Maybe (Node msg) -> Node msg -> IndexingResult msg
 index backend wrapper perPage oldNode newNode =
@@ -173,7 +215,27 @@ updateNodeTagIndex tag record actionState =
 -- TODO
 removedActions : Dict String String -> List (IndexingAction msg)
 removedActions removed =
-    []
+    List.map removedTagActions (Dict.toList removed)
+        |> List.concat
+
+removedTagActions : (String, String) -> List (IndexingAction msg)
+removedTagActions (tag, index) =
+    if index == "" then
+        []
+    else
+        [ readTagPageFromIndex tag index
+        , removeNodePathFromTagPage tag
+        ]
+
+-- TODO
+readTagPageFromIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
+readTagPageFromIndex tag index record actionState =
+    Ok Cmd.none
+
+-- TODO
+removeNodePathFromTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
+removeNodePathFromTagPage tag record actionState =
+    Ok Cmd.none
 
 tagsFile : String
 tagsFile =
