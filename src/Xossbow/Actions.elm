@@ -11,8 +11,8 @@
 
 module Xossbow.Actions exposing ( ActionState, Action
                                 , makeActionState, nextAction
-                                , getState, setState
-                                , pushAction, discardAction
+                                , getState, setState, mapState
+                                , pushAction, appendActions, discardAction
                                 )
 
 type ActionState state msg =
@@ -23,8 +23,11 @@ type alias StateRecord state msg =
     , actions : List (Action state msg)
     }
 
+type alias ActionResult msg =
+    Result String (Cmd msg)
+
 type alias Action state msg =
-    state -> ActionState state msg -> Cmd msg
+    state -> ActionState state msg -> ActionResult msg
 
 makeActionState : state -> List (Action state msg) -> ActionState state msg
 makeActionState state actions =
@@ -32,11 +35,11 @@ makeActionState state actions =
                    , actions = actions
                    }
 
-nextAction : ActionState state msg -> Cmd msg
+nextAction : ActionState state msg -> ActionResult msg
 nextAction (TheActionState actionState) =
     case actionState.actions of
         [] ->
-            Cmd.none
+            Ok Cmd.none
         first :: rest ->
             first actionState.state
                 <| TheActionState { actionState | actions = rest }
@@ -49,9 +52,18 @@ setState : state -> ActionState state msg -> ActionState state msg
 setState state (TheActionState actionState) =
     TheActionState { actionState | state = state }
 
+mapState : (state -> state) -> ActionState state msg -> ActionState state msg
+mapState f (TheActionState actionState) =
+    TheActionState { actionState | state = f actionState.state }
+
 pushAction : Action state msg -> ActionState state msg -> ActionState state msg
 pushAction action (TheActionState actionState) =
     TheActionState { actionState | actions = action :: actionState.actions }
+
+appendActions : List (Action state msg) -> ActionState state msg -> ActionState state msg
+appendActions actions (TheActionState actionState) =
+    TheActionState
+    { actionState | actions = List.append actions actionState.actions }
 
 discardAction : ActionState state msg -> ActionState state msg
 discardAction (TheActionState actionState) =

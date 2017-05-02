@@ -21,32 +21,30 @@ import Xossbow.Types as Types exposing ( Node, Plist, UploadType(..)
                                        , get, downloadFile, uploadFile
                                        )
 
+import Xossbow.Actions as Actions exposing ( ActionState, Action
+                                           , makeActionState, nextAction
+                                           )
+
 import Dict exposing ( Dict )
 
 type IndexingState msg
-    = TheState (IndexingRecord msg)
+    = TheState (ActionState (IndexingRecord msg) msg)
 
-type Awaiting msg
-  = AwaitingNothing
-  | AwaitingAdd (String, String) (Node msg)
-  | AwaitingRemove (String, String) (Node msg)
-  | AwaitingWrite (Node msg) (Awaiting msg)
-  | AwaitingIndex String (Awaiting msg)
+type alias IndexingAction msg =
+    Action (IndexingRecord msg) msg
 
 type alias IndexingRecord msg =
     { perPage : Int
     , node : Node msg
+    , backend : Backend msg
     , result : Maybe BackendResult
-    , awaiting : Awaiting msg
-    , adds : List (String, String)
-    , removes : List (String, String)
     }
 
 type alias IndexingWrapper msg =
     IndexingState msg -> msg
 
 type alias IndexingResult msg =
-    Result String (Backend msg, Cmd msg)
+    Result (Backend msg, String) (Maybe (Backend msg), Cmd msg)
 
 {-| Call when a node is created or changed.
 
@@ -100,47 +98,45 @@ For each "removed" (<tag>, <index>) pair:
 -}
 updateIndices : Backend msg -> IndexingWrapper msg -> Int -> Node msg -> Dict String String -> Dict String String -> IndexingResult msg
 updateIndices backend wrapper perPage node added removed =
-    TheState { perPage = perPage
-             , node = node
-             , result = Nothing
-             , awaiting = AwaitingNothing 
-             , adds = Dict.toList added
-             , removes = Dict.toList removed
-             }
-        |> continueIndexing backend wrapper
+    let record = { perPage = perPage
+                 , node = node
+                 , backend = backend
+                 , result = Nothing
+                 }
+        actions = List.append (addedActions added) (removedActions removed)
+        state = TheState <| makeActionState record actions
+    in
+        continueIndexing backend wrapper state
+
+getBackend : ActionState (IndexingRecord msg) msg -> Backend msg
+getBackend actions =
+    let record = Actions.getState actions
+    in
+        record.backend
 
 {-| Continues indexing via the state in the wrapper passed to `index`
 or `continueIndexing`.
 -}
 continueIndexing : Backend msg -> IndexingWrapper msg -> IndexingState msg -> IndexingResult msg
 continueIndexing backend wrapper (TheState state) =
-    case processResult backend state.result state.awaiting state of
+    case nextAction state of
         Err msg ->
-            Err msg
-        Ok (state2, backend2, cmd) ->
+            Err (getBackend state, msg)
+        Ok cmd ->
             if cmd /= Cmd.none then
-                Ok (backend2, cmd)
+                Ok (Nothing, cmd)
             else
-                case state.adds of
-                    pair :: rest ->
-                        Ok ( backend2
-                           , readIndex backend2 wrapper pair
-                               { state2
-                                   | adds = rest
-                                   , awaiting = AwaitingAdd pair state2.node}
-                           )
-                    [] ->
-                        case state.removes of
-                            pair :: rest ->
-                                Ok ( backend2
-                                   , readIndex backend2 wrapper pair
-                                       { state2
-                                           | removes = rest
-                                           , awaiting =
-                                               AwaitingRemove pair state2.node}
-                                   )
-                            [] ->
-                                Ok (backend2, Cmd.none)
+                Ok (Just <| getBackend state, cmd)                
+
+-- TODO
+addedActions : Dict String String -> List (IndexingAction msg)
+addedActions added =
+    []
+
+-- TODO
+removedActions : Dict String String -> List (IndexingAction msg)
+removedActions removed =
+    []
 
 tagsFile : String
 tagsFile =
@@ -157,62 +153,3 @@ tagIndexFile tag =
 tagFile : String -> String -> String
 tagFile tag name =
     (tagDir tag) ++ name ++ ".txt"
-
--- TODO: update and write out read result.
--- Process errors on write result
--- Eventually: do something reasonable about errors
--- Eventually: send along a hash of the old string, for collision detection.
-processResult : Backend msg -> Maybe BackendResult -> Awaiting msg -> IndexingRecord msg -> Result String (IndexingRecord msg, Backend msg, Cmd msg)
-processResult backend result awaiting state =
-    case result of
-        Nothing ->
-            Ok (state, backend, Cmd.none)
-        Just res ->
-            case res of
-                Err (NotFoundError, operation) ->
-                    Err <| "Not found: " ++ (toString operation)
-                Err err ->
-                    Err <| toString err
-                Ok operation ->
-                    case awaiting of
-                        AwaitingWrite _ _ ->
-                            Ok ( { state | awaiting = AwaitingNothing }
-                               , Types.updateState operation backend
-                               , Cmd.none
-                               )
-                        _ ->
-                            handleDownload backend operation awaiting state
-
-handleDownload : Backend msg -> BackendOperation -> Awaiting msg -> IndexingRecord msg -> Result String (IndexingRecord msg, Backend msg, Cmd msg)
-handleDownload backend operation awaiting state =
-    let backend2 = Types.updateState operation backend
-    in
-        case operation of
-            DownloadFile _ uploadType path contents ->
-                Ok (state
-                   , backend2
-                   ,Cmd.none)
-            _ ->
-                Ok (state
-                   , backend2
-                   , Cmd.none)
-
-wrapBackendResult : BackendResult -> IndexingWrapper msg -> IndexingRecord msg -> msg
-wrapBackendResult result indexingWrapper state =
-  indexingWrapper <| TheState { state | result = Just result }
-
-readIndex : Backend msg -> IndexingWrapper msg -> (String, String) -> IndexingRecord msg -> Cmd msg
-readIndex backend wrapper pair state =
-  let wrap = (\state res -> wrapBackendResult res wrapper state)
-      (tag, name) = pair
-  in
-      if name == "" then
-          let path = tagIndexFile tag
-              state2 =
-                  { state | awaiting = AwaitingIndex tag state.awaiting }
-          in
-              downloadFile backend (wrap state2) Page path
-      else
-          let path = tagFile tag name
-          in
-              downloadFile backend (wrap state) Page path
