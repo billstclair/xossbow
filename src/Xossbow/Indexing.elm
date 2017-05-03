@@ -9,9 +9,9 @@
 --
 ----------------------------------------------------------------------
 
-module Xossbow.Indexing exposing ( IndexingState(..), IndexingWrapper
+module Xossbow.Indexing exposing ( IndexingState, IndexingWrapper
                                  , IndexingResult
-                                 , index, continueIndexing
+                                 , createTag, index, continueIndexing
                                  )
 
 import Xossbow.Types as Types exposing ( Node, Plist, UploadType(..)
@@ -24,6 +24,8 @@ import Xossbow.Types as Types exposing ( Node, Plist, UploadType(..)
 import Xossbow.Actions as Actions exposing ( ActionState, Action, ActionResult
                                            , makeActionState, nextAction
                                            )
+
+import Xossbow.Parsers as Parser exposing ( parseNode )
 
 import Dict exposing ( Dict )
 
@@ -182,15 +184,78 @@ addedTagActions (tag, index) =
         , updateNodeTagIndex tag
         ]
 
--- TODO
+wrapBackendResult : IndexingWrapper msg -> IndexingActionState msg -> BackendResult -> msg
+wrapBackendResult wrapper actionState result =
+    Actions.mapState (\record -> { record | result = Just result })
+                     actionState
+        |> TheState
+        |> wrapper
+
+-- Initiate a read of "tags/<tag>/index.txt"
 readTagIndex : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 readTagIndex tag record actionState =
-    Ok Cmd.none
+    let path = tagIndexFile tag
+        cmd = downloadFile
+              record.backend
+              (wrapBackendResult record.wrapper actionState)
+              Page
+              path
+    in
+        Ok cmd
 
--- TODO
+actionError : String -> String -> ActionResult msg
+actionError function message =
+    Err <| "Indexing." ++ function ++ ": " ++ message
+
+actionCmd : IndexingRecord msg -> IndexingActionState msg -> Types.State -> (Backend msg -> BackendWrapper msg -> Cmd msg) -> ActionResult msg
+actionCmd record actionState state makeCmd =
+    let backend = record.backend
+        as2 = Actions.setState
+              { record
+                  | backend = { backend
+                                  | state = state
+                              }
+              }
+              actionState
+        cmd = makeCmd
+              backend
+              (wrapBackendResult record.wrapper as2)
+    in
+        Ok cmd
+                    
+downloadPage : String -> Backend msg -> BackendWrapper msg -> Cmd msg
+downloadPage path backend wrapper =
+    downloadFile backend wrapper Page path
+
+-- Expects record.result to be the result of readTagIndex.
+-- If successful, and the parsed page has a non-empty "permindex" property,
+-- returns a command to read that page.
+-- Otherwise, returns an error.
 readTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 readTagPage tag record actionState =
-    Ok Cmd.none
+    let error = actionError "readTagPage"
+    in
+        case record.result of
+            Nothing ->
+                error "Missing result"
+            Just result ->
+                case result of
+                    Err (err, _) ->
+                        error <| toString err
+                    Ok (DownloadFile state _ _ (Just contents)) ->
+                        case parseNode contents of
+                            Err err ->
+                                actionError "readTagPage, error parsing node"
+                                    (toString err)
+                            Ok node ->
+                                case Types.get "permindex" node.plist of
+                                    Nothing ->
+                                        error "missing permindex property"
+                                    Just name ->
+                                        actionCmd record actionState state
+                                            <| downloadPage (tagFile tag name)
+                    Ok operation ->
+                        error <| toString operation
 
 -- TODO
 writeNodePathToTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
