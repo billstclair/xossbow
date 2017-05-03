@@ -181,7 +181,7 @@ addedTagActions (tag, index) =
         [ readTagIndex tag
         , readTagPage tag
         , writeNodePathToTagPage tag
-        , updateNodeTagIndex tag
+        , writeNode tag
         ]
 
 wrapBackendResult : IndexingWrapper msg -> IndexingActionState msg -> BackendResult -> msg
@@ -207,6 +207,8 @@ actionError : String -> String -> ActionResult msg
 actionError function message =
     Err <| "Indexing." ++ function ++ ": " ++ message
 
+-- Return a successful result with the value of `makeCmd`,
+-- updating the backend state inside of `actionState` with `state`.
 actionCmd : IndexingRecord msg -> IndexingActionState msg -> Types.State -> (Backend msg -> BackendWrapper msg -> Cmd msg) -> ActionResult msg
 actionCmd record actionState state makeCmd =
     let backend = record.backend
@@ -223,17 +225,20 @@ actionCmd record actionState state makeCmd =
     in
         Ok cmd
                     
+-- A wrapper around `Types.downloadFile` that puts the `path` first, so
+-- it can easily be closed over.
 downloadPage : String -> Backend msg -> BackendWrapper msg -> Cmd msg
 downloadPage path backend wrapper =
     downloadFile backend wrapper Page path
 
--- Expects record.result to be the result of readTagIndex.
--- If successful, and the parsed page has a non-empty "permindex" property,
--- returns a command to read that page.
--- Otherwise, returns an error.
-readTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
-readTagPage tag record actionState =
-    let error = actionError "readTagPage"
+type alias PageContentsProcessor msg =
+    (String -> ActionResult msg) -> Types.State -> Node msg -> ActionResult msg
+
+-- Do the uninteresting part of processing the contents of a just-read page.
+-- Call `processor` to do the actual work.
+processPageContents : String -> IndexingRecord msg -> IndexingActionState msg -> PageContentsProcessor msg -> ActionResult msg
+processPageContents pageName record actionState processor =
+    let error = actionError pageName
     in
         case record.result of
             Nothing ->
@@ -245,26 +250,49 @@ readTagPage tag record actionState =
                     Ok (DownloadFile state _ _ (Just contents)) ->
                         case parseNode contents of
                             Err err ->
-                                actionError "readTagPage, error parsing node"
-                                    (toString err)
+                                error <| "Error parsing node: " ++ (toString err)
                             Ok node ->
-                                case Types.get "permindex" node.plist of
-                                    Nothing ->
-                                        error "missing permindex property"
-                                    Just name ->
-                                        actionCmd record actionState state
-                                            <| downloadPage (tagFile tag name)
+                                processor error state node
                     Ok operation ->
                         error <| toString operation
 
--- TODO
+-- Expects record.result to be the result of readTagIndex.
+-- If successful, and the parsed page has a non-empty "permindex" property,
+-- returns a command to read that page.
+-- Otherwise, returns an error.
+readTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
+readTagPage tag record actionState =
+    let processor = (\error state node ->
+                         case Types.get "permindex" node.plist of
+                             Nothing ->
+                                 error "missing permindex property"
+                             Just name ->
+                                 actionCmd record actionState state
+                                     <| downloadPage (tagFile tag name)
+                    )
+    in
+        processPageContents "readTagPage" record actionState processor
+
+-- Expects record.result to be the result of readTagPage
+-- If successful, and the parsed page is a list of `LookupPageAtom`s,
+-- will add record.node's path to the top, and write.
+-- If the list is already of length record.perPage or greater,
+-- and its `next` link is blank, will instead
+-- adds `Action`s to the list to create a new index page, link the
+-- current index to it via `next`, and update "tags/<tag>/index.html" to
+-- point to the new page.
 writeNodePathToTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeNodePathToTagPage tag record actionState =
-    Ok Cmd.none
+    let processor = (\error state node ->
+                         Ok Cmd.none
+                    )
+    in
+        processPageContents "writeNodePathToTagPage" record actionState processor
 
 -- TODO
-updateNodeTagIndex : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
-updateNodeTagIndex tag record actionState =
+-- Write `record.node` back to the server.
+writeNode : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
+writeNode tag record actionState =
     Ok Cmd.none
 
 {- For each "removed" (<tag>, <index>) pair:
