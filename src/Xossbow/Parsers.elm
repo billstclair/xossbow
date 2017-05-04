@@ -10,6 +10,8 @@
 ----------------------------------------------------------------------
 
 module Xossbow.Parsers exposing ( parseNode, nodeParser
+                                , parseNodeContent, fillinNodeContent
+                                , setNodeContent
                                 , parsePlist, plistParser
                                 , encodeNode, nodeToPlist, encodePlist, mergePlists
                                 , parseValue, valueParser
@@ -22,6 +24,11 @@ import Xossbow.Types as Types
     exposing ( Node, nodeVersion, emptyNode
              , ContentType (..), Plist
              )
+
+import HtmlTemplate.EncodeDecode exposing ( decodeAtom, customEncodeAtom )
+import HtmlTemplate.Types exposing ( Atom(..) )
+import HtmlTemplate.Markdown as Markdown
+import HtmlTemplate.Utility as Utility exposing ( mergeStrings )
 
 import Date exposing ( Date )
 import Time exposing ( Time )
@@ -43,6 +50,33 @@ import Parser exposing ( Parser, Error, Count(..)
 parseNode : String -> Result Error (Node msg)
 parseNode string =
     Parser.run nodeParser string
+
+parseNodeContent : Node msg -> Result String (Atom msg)
+parseNodeContent node =
+    case node.contentType of
+        Json ->
+            decodeAtom node.rawContent
+        Markdown ->
+            Markdown.run node.rawContent
+                |> Utility.mergeStrings
+                |> Ok
+        Text ->
+            Ok ( StringAtom node.rawContent )
+        Code ->
+            Ok ( RecordAtom
+                     { tag = "pre"
+                     , attributes = []
+                     , body = [ StringAtom node.rawContent ]
+                     }
+               )
+
+fillinNodeContent : Node msg -> Result String (Node msg)
+fillinNodeContent node =
+    case parseNodeContent node of
+        Err msg ->
+            Err msg
+        Ok atom ->
+            Ok { node | content = atom }
 
 makeNode : Plist -> String -> Node msg
 makeNode plist rawContent =
@@ -321,6 +355,39 @@ encodeNode node =
     ++ (if "\n" == (String.left 1 node.rawContent) then "" else "\n")
     ++ node.rawContent
 
+setNodeContent : Atom msg -> Node msg -> Node msg
+setNodeContent atom node =
+    let general = (\_ ->
+                       { node
+                           | content = atom
+                           , rawContent = customEncodeAtom 0 atom
+                           , contentType = Json
+                       }
+                  )
+    in
+        case atom of
+            StringAtom string ->
+                { node
+                    | content = atom
+                    , rawContent = string
+                    , contentType = Text
+                }
+            RecordAtom {tag, attributes, body} ->
+                if tag == "pre" && attributes == [] then
+                    case body of
+                        [StringAtom string] ->
+                            { node
+                                | content = atom
+                                , rawContent = string
+                                , contentType = Code
+                            }
+                        _ ->
+                            general ()
+                else
+                    general()
+            _ ->
+                general ()        
+
 testNode1 : Node msg
 testNode1 =
     { emptyNode
@@ -343,4 +410,3 @@ testNode =
                }
         |> parseNode
         |> Result.withDefault emptyNode
-

@@ -17,7 +17,7 @@ import Xossbow.Types as Types
              , BackendOperation, UploadType(..)
              , BackendResult, updateStateFromResult
              )
-import Xossbow.Parsers exposing ( parseNode )
+import Xossbow.Parsers exposing ( parseNode, parseNodeContent )
 import Xossbow.Backend.ApachePost as ApachePost
 import Xossbow.Backend.RamDict as RamDict
 
@@ -517,25 +517,6 @@ parsePage page text =
                            n
         in
             nodeToAtom { node | path = page }
-
-parseNodeContent : Node msg -> Result String (Atom msg)
-parseNodeContent node =
-    case node.contentType of
-        Json ->
-            decodeAtom node.rawContent
-        Markdown ->
-            Markdown.run node.rawContent
-                |> Utility.mergeStrings
-                |> Ok
-        Text ->
-            Ok ( StringAtom node.rawContent )
-        Code ->
-            Ok ( RecordAtom
-                     { tag = "pre"
-                     , attributes = []
-                     , body = [ StringAtom node.rawContent ]
-                     }
-               )
 
 nodeToAtom : Node msg -> Result String (Atom msg)
 nodeToAtom node =

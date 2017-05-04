@@ -25,7 +25,7 @@ import Xossbow.Actions as Actions exposing ( ActionState, Action, ActionResult
                                            , makeActionState, nextAction
                                            )
 
-import Xossbow.Parsers as Parser exposing ( parseNode )
+import Xossbow.Parsers as Parser exposing ( parseNode, parseNodeContent )
 
 import Dict exposing ( Dict )
 
@@ -281,6 +281,7 @@ readTagPage tag record actionState =
 -- adds `Action`s to the list to create a new index page, link the
 -- current index to it via `next`, and update "tags/<tag>/index.html" to
 -- point to the new page.
+-- TODO
 writeNodePathToTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeNodePathToTagPage tag record actionState =
     let processor = (\error state node ->
