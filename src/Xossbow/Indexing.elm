@@ -17,7 +17,7 @@ module Xossbow.Indexing exposing ( IndexingState, IndexingWrapper
 import Xossbow.Types as Types exposing ( Node, Plist, UploadType(..)
                                        , Backend, BackendOperation(..)
                                        , BackendWrapper, BackendResult
-                                       , BackendError(..)
+                                       , BackendError(..), Authorization
                                        , get, downloadFile, uploadFile
                                        )
 
@@ -25,9 +25,13 @@ import Xossbow.Actions as Actions exposing ( ActionState, Action, ActionResult
                                            , makeActionState, nextAction
                                            )
 
-import Xossbow.Parsers as Parser exposing ( parseNode, parseNodeContent )
+import Xossbow.Parsers as Parsers exposing ( parseNode, parseNodeContent )
+
+import HtmlTemplate.Types exposing ( Atom(..) )
 
 import Dict exposing ( Dict )
+import List.Extra as LE
+import Task
 
 type IndexingState msg
     = TheState (IndexingActionState msg)
@@ -43,6 +47,7 @@ type alias IndexingRecord msg =
     , node : Node msg
     , backend : Backend msg
     , wrapper : IndexingWrapper msg
+    , authorization : Authorization
     , result : Maybe BackendResult
     }
 
@@ -56,12 +61,13 @@ type alias IndexingResult msg =
 
     createTag backend wrapper tag description
 -}
-createTag : Backend msg -> IndexingWrapper msg -> String -> String -> IndexingResult msg
-createTag backend wrapper tag description =
+createTag : Backend msg -> IndexingWrapper msg -> Authorization -> String -> String -> IndexingResult msg
+createTag backend wrapper authorization tag description =
     let record = { perPage = 10
                  , node = Types.emptyNode
                  , backend = backend
                  , wrapper = wrapper
+                 , authorization = authorization
                  , result = Nothing
                  }
         actions = [ readTagIndex tag
@@ -88,7 +94,7 @@ updateTagsIndex : String -> String -> IndexingRecord msg -> IndexingActionState 
 updateTagsIndex tag description record actionState =
     Ok Cmd.none
 
-{-| Call when a node is created or changed.
+{-| Call when a node is created or its tags are changed.
 
 Initiates the updates necessary to index a new or changed file.
 Call after writing the file.
@@ -99,26 +105,29 @@ Use the returned value to update the `Backend` in your model, or to return the
 When you get a message resulting from the `IndexingWrapper` arg, pass the
 wrapped `IndexingState` to `continueIndexing`.
 -}
-index : Backend msg -> IndexingWrapper msg -> Int -> Maybe (Node msg) -> Node msg -> IndexingResult msg
-index backend wrapper perPage oldNode newNode =
+index : Backend msg -> IndexingWrapper msg -> Authorization -> Int -> Maybe (Node msg) -> Node msg -> IndexingResult msg
+index backend wrapper authorization perPage oldNode newNode =
     case oldNode of
         Nothing ->
             let added = newNode.indices
                 removed = Dict.empty
             in
-                updateIndices backend wrapper perPage newNode added removed
+                updateIndices
+                    backend wrapper authorization perPage newNode added removed
         Just old ->
             let added = newNode.indices --always ensure membership
                 removed = Dict.diff old.indices newNode.indices
             in
-                updateIndices backend wrapper perPage newNode added removed
+                updateIndices
+                    backend wrapper authorization perPage newNode added removed
 
-updateIndices : Backend msg -> IndexingWrapper msg -> Int -> Node msg -> Dict String String -> Dict String String -> IndexingResult msg
-updateIndices backend wrapper perPage node added removed =
+updateIndices : Backend msg -> IndexingWrapper msg -> Authorization -> Int -> Node msg -> Dict String String -> Dict String String -> IndexingResult msg
+updateIndices backend wrapper authorization perPage node added removed =
     let record = { perPage = perPage
                  , node = node
                  , backend = backend
                  , wrapper = wrapper
+                 , authorization = authorization
                  , result = Nothing
                  }
         actions = List.append (addedActions added) (removedActions removed)
@@ -144,7 +153,7 @@ continueIndexing (TheState state) =
             if cmd /= Cmd.none then
                 Ok (Nothing, cmd)
             else if Actions.isEmpty state then
-                Ok (Just <| getBackend state, cmd)                
+                Ok (Just <| getBackend state, Cmd.none)
             else
                 continueIndexing (TheState state)
 
@@ -181,7 +190,7 @@ addedTagActions (tag, index) =
         [ readTagIndex tag
         , readTagPage tag
         , writeNodePathToTagPage tag
-        , writeNode tag
+        -- The node gets updated by a new action pushed by writeNodePathToTagPage
         ]
 
 wrapBackendResult : IndexingWrapper msg -> IndexingActionState msg -> BackendResult -> msg
@@ -207,38 +216,61 @@ actionError : String -> String -> ActionResult msg
 actionError function message =
     Err <| "Indexing." ++ function ++ ": " ++ message
 
+updateBackendState : IndexingRecord msg -> Types.State -> IndexingActionState msg -> IndexingActionState msg
+updateBackendState record state actionState =
+    let backend = record.backend
+    in
+        Actions.setState
+            { record
+                | backend = { backend | state = state }
+            }
+            actionState
+
 -- Return a successful result with the value of `makeCmd`,
 -- updating the backend state inside of `actionState` with `state`.
 actionCmd : IndexingRecord msg -> IndexingActionState msg -> Types.State -> (Backend msg -> BackendWrapper msg -> Cmd msg) -> ActionResult msg
 actionCmd record actionState state makeCmd =
-    let backend = record.backend
-        as2 = Actions.setState
-              { record
-                  | backend = { backend
-                                  | state = state
-                              }
-              }
-              actionState
-        cmd = makeCmd
-              backend
-              (wrapBackendResult record.wrapper as2)
+    let as2 = updateBackendState record state actionState
+    in
+        simpleActionCmd record as2 makeCmd
+                    
+-- Return a successful result with the value of `makeCmd`,
+simpleActionCmd : IndexingRecord msg -> IndexingActionState msg -> (Backend msg -> BackendWrapper msg -> Cmd msg) -> ActionResult msg
+simpleActionCmd record actionState makeCmd =
+    let cmd = makeCmd
+              record.backend
+              (wrapBackendResult record.wrapper actionState)
     in
         Ok cmd
-                    
+
 -- A wrapper around `Types.downloadFile` that puts the `path` first, so
 -- it can easily be closed over.
 downloadPage : String -> Backend msg -> BackendWrapper msg -> Cmd msg
 downloadPage path backend wrapper =
     downloadFile backend wrapper Page path
 
+-- A wrapper around `Types.uploadFile` that puts the `authorization`, `path`,
+-- and `content` first, so they can easily be closed over.
+uploadPage : Authorization -> String -> String -> Backend msg -> BackendWrapper msg -> Cmd msg
+uploadPage authorization path content backend wrapper =
+    uploadFile backend wrapper authorization Page path content
+
 type alias PageContentsProcessor msg =
     (String -> ActionResult msg) -> Types.State -> Node msg -> ActionResult msg
 
--- Do the uninteresting part of processing the contents of a just-read page.
+-- Do the uninteresting part of processing the contents of a just-read
+-- (or just-written) page.
 -- Call `processor` to do the actual work.
 processPageContents : String -> IndexingRecord msg -> IndexingActionState msg -> PageContentsProcessor msg -> ActionResult msg
 processPageContents pageName record actionState processor =
     let error = actionError pageName
+        doit = (\state path contents ->
+                    case parseNode contents of
+                        Err err ->
+                            error <| "Error parsing node: " ++ (toString err)
+                        Ok node ->
+                            processor error state { node | path = path }
+               )
     in
         case record.result of
             Nothing ->
@@ -247,14 +279,18 @@ processPageContents pageName record actionState processor =
                 case result of
                     Err (err, _) ->
                         error <| toString err
-                    Ok (DownloadFile state _ _ (Just contents)) ->
-                        case parseNode contents of
-                            Err err ->
-                                error <| "Error parsing node: " ++ (toString err)
-                            Ok node ->
-                                processor error state node
                     Ok operation ->
-                        error <| toString operation
+                        case operation of
+                            DownloadFile state _ path (Just contents) ->
+                                doit state path contents
+                            UploadFile state _ _ path contents ->
+                                doit state path contents
+                            operation ->
+                                error <| toString operation
+
+permindex : Node msg -> Maybe String
+permindex node =
+    Types.get "permindex" node.plist
 
 -- Expects record.result to be the result of readTagIndex.
 -- If successful, and the parsed page has a non-empty "permindex" property,
@@ -263,7 +299,7 @@ processPageContents pageName record actionState processor =
 readTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 readTagPage tag record actionState =
     let processor = (\error state node ->
-                         case Types.get "permindex" node.plist of
+                         case permindex node of
                              Nothing ->
                                  error "missing permindex property"
                              Just name ->
@@ -285,15 +321,122 @@ readTagPage tag record actionState =
 writeNodePathToTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeNodePathToTagPage tag record actionState =
     let processor = (\error state node ->
-                         Ok Cmd.none
+                         case parseNodeContent node of
+                             Err err ->
+                                 error err
+                             Ok atom ->
+                                 case atom of
+                                     ListAtom list ->
+                                         let as2 = updateBackendState
+                                                   record state actionState
+                                             r2 = Actions.getState as2
+                                         in
+                                             writeNodePathToTagPageInternal
+                                                 tag r2 as2 node list
+                                     _ ->
+                                         error "Index node not a list."
                     )
     in
         processPageContents "writeNodePathToTagPage" record actionState processor
 
+stateCmd : IndexingWrapper msg -> IndexingActionState msg -> Cmd msg
+stateCmd wrapper actionState =
+    Task.perform wrapper (Task.succeed <| TheState actionState)
+
+writeNodePathToTagPageInternal : String -> IndexingRecord msg -> IndexingActionState msg -> Node msg -> List (Atom msg) -> ActionResult msg
+writeNodePathToTagPageInternal tag record actionState indexNode list =
+    let node = record.node
+        path = node.path
+    in
+        case LE.find (\a ->
+                          case a of
+                              StringAtom s ->
+                                  s == path
+                              _ ->
+                                  False
+                     )
+            list
+        of
+            Just _ ->
+                Ok
+                <| stateCmd record.wrapper
+                <| Actions.discardAction actionState --don't call `writeNode`
+            Nothing ->
+                if List.length list < record.perPage then
+                    -- The new page fits in the current index
+                    let n = Parsers.setNodeContent
+                            (ListAtom <| StringAtom path :: list)
+                            indexNode
+                        s = Parsers.encodeNode n
+                        node2 = case permindex n of
+                                    Nothing ->
+                                        node --maybe this should error instead
+                                    Just index ->
+                                        let indices = Dict.insert
+                                                      tag index node.indices
+                                        in
+                                            { node | indices = indices }
+                        as2 = Actions.pushAction (writeNode node2) actionState
+                    in
+                        simpleActionCmd record as2
+                            <| uploadPage record.authorization indexNode.path s
+                else
+                    -- The new page does NOT fit in the current index.
+                    -- Need to make a new index.
+                    writeNewIndexPage tag record actionState indexNode
+
+writeNewIndexPage : String -> IndexingRecord msg -> IndexingActionState msg -> Node msg -> ActionResult msg
+writeNewIndexPage tag record actionState indexNode =
+    let error = actionError "writeNewIndexPage"
+    in
+        case permindex indexNode of
+            Nothing ->
+                error "Missing permindex property"
+            Just index ->
+                case String.toInt index of
+                    Err _ ->
+                        error <| "Index not an integer: " ++ index
+                    Ok idx ->
+                        let newidx = toString <| idx + record.perPage
+                            in2 = { indexNode
+                                      | plist = Types.set
+                                                "next" newidx indexNode.plist
+                                  }
+                            node = record.node
+                            n2 = { node | indices = Dict.insert
+                                                    tag newidx node.indices
+                                 }
+                            newin = { indexNode
+                                        | plist = Types.set
+                                                  "permindex" newidx
+                                                  <| Types.set
+                                                      "previous" index
+                                                      indexNode.plist
+                                        , path = tagFile tag newidx
+                                        , content = ListAtom
+                                                    [ StringAtom node.path ]
+                                    }
+                            as2 = Actions.appendActions
+                                  [ writeNode newin
+                                  , writeNode in2
+                                  , readTagIndex tag --could save earlier read
+                                  , writeTagIndex tag newidx
+                                  , writeNode n2
+                                  ]
+                                  actionState
+                        in
+                            nextAction as2
+
 -- TODO
--- Write `record.node` back to the server.
-writeNode : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
-writeNode tag record actionState =
+-- Write `tags/<tag>/index.txt` back to the server.
+writeTagIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
+writeTagIndex tag newidx record actionState =
+    Ok Cmd.none
+
+-- TODO
+-- Write `node` to the server
+writeNode : Node msg -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
+writeNode node record actionState =
     Ok Cmd.none
 
 {- For each "removed" (<tag>, <index>) pair:

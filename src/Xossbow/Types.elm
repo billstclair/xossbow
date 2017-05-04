@@ -11,7 +11,7 @@
 
 module Xossbow.Types exposing ( Node, nodeVersion, emptyNode
                               , ContentType (..)
-                              , Plist, get
+                              , Plist, get, set
                               , State(..)
                               , Backend
                               , UploadType(..), Authorization
@@ -86,6 +86,10 @@ get key plist =
                 Just v
             else
                 get key rest
+
+set : String -> String -> Plist -> Plist
+set key value plist =
+    (key, value) :: (List.filter (\(k,_) -> k /= key) plist)
 
 type UploadType
     = Settings
