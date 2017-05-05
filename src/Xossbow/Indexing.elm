@@ -29,6 +29,8 @@ import Xossbow.Parsers as Parsers exposing ( parseNode, parseNodeContent )
 
 import HtmlTemplate.Types exposing ( Atom(..) )
 
+import HtmlTemplate.EncodeDecode exposing ( customEncodeAtom )
+
 import Dict exposing ( Dict )
 import List.Extra as LE
 import Task
@@ -79,14 +81,43 @@ createTag backend wrapper authorization tag description =
     in
         continueIndexing state
 
+emptyTagIndexNode : String -> String -> String -> Node msg
+emptyTagIndexNode tag description index =
+    let content = LookupPageAtom index
+        node = Types.emptyNode
+        path = tagIndexFile tag
+    in
+        { node
+            | nodeTemplate = "tagIndex"
+            , comment = description
+            , title = "Index for tag: " ++ tag
+            , author = "Xossbow"
+            , contentType = Types.Json
+            , rawContent = customEncodeAtom 0 content
+            , content = content
+            , path = Types.uploadPath Page path
+            , plist = [ ("tag", tag) ]
+        }
+
 -- TODO
 updateTagIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 updateTagIndex tag description record actionState =
-    let processor = (\error state node ->
-                         Ok Cmd.none
+    let index = toString record.perPage
+        processor = (\error state maybeNode ->
+                         let node = case maybeNode of
+                                        Just n ->
+                                            { n | comment = description }
+                                        Nothing ->
+                                            emptyTagIndexNode tag description index
+                         in
+                             nextAction
+                                 <| Actions.pushAction
+                                     (writeNode node)
+                                     actionState
                     )
     in    
-        processPossiblyMissingPageContents "updateTagIndex" True record actionState processor 
+        processPossiblyMissingPageNode
+        "updateTagIndex" True record actionState processor 
 
 -- TODO
 readTagsIndex : IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
@@ -259,11 +290,17 @@ uploadPage : Authorization -> String -> String -> Backend msg -> BackendWrapper 
 uploadPage authorization path content backend wrapper =
     uploadFile backend wrapper authorization Page path content
 
-type alias PageContentsProcessor msg =
+-- error state node
+type alias PageNodeProcessor msg =
     (String -> ActionResult msg) -> Types.State -> Node msg -> ActionResult msg
 
-type alias MaybePageContentsProcessor msg =
+-- error state maybeNode
+type alias MaybePageNodeProcessor msg =
     (String -> ActionResult msg) -> Types.State -> Maybe (Node msg) -> ActionResult msg
+
+-- error state path maybeContents
+type alias MaybePageContentsProcessor msg =
+    (String -> ActionResult msg) -> Types.State -> String -> Maybe String -> ActionResult msg
 
 -- Do the uninteresting part of processing the contents of a just-read
 -- (or just-written) page.
@@ -271,13 +308,6 @@ type alias MaybePageContentsProcessor msg =
 processPossiblyMissingPageContents : String -> Bool -> IndexingRecord msg -> IndexingActionState msg -> MaybePageContentsProcessor msg -> ActionResult msg
 processPossiblyMissingPageContents function allowNotFound record actionState processor =
     let error = actionError function
-        doit = (\state path contents ->
-                    case parseNode contents of
-                        Err err ->
-                            error <| "Error parsing node: " ++ (toString err)
-                        Ok node ->
-                            processor error state <| Just { node | path = path }
-               )
     in
         case record.result of
             Nothing ->
@@ -288,7 +318,7 @@ processPossiblyMissingPageContents function allowNotFound record actionState pro
                         if err == NotFoundError && allowNotFound then
                             case operation of
                                 DownloadFile state _ path _ ->
-                                    processor error state Nothing
+                                    processor error state path Nothing
                                 _ ->
                                     error "NotFoundError on non-download"
                         else
@@ -296,14 +326,39 @@ processPossiblyMissingPageContents function allowNotFound record actionState pro
                     Ok operation ->
                         case operation of
                             DownloadFile state _ path (Just contents) ->
-                                doit state path contents
+                                processor error state path <| Just contents
                             UploadFile state _ _ path contents ->
-                                doit state path contents
+                                processor error state path <| Just contents
                             operation ->
                                 error <| toString result
 
-processPageContents : String -> IndexingRecord msg -> IndexingActionState msg -> PageContentsProcessor msg -> ActionResult msg
-processPageContents function record actionState processor =
+-- Do the uninteresting part of processing the Node from a just-read
+-- (or just-written) page that may not exist.
+-- Call `processor` to do the actual work.
+processPossiblyMissingPageNode : String -> Bool -> IndexingRecord msg -> IndexingActionState msg -> MaybePageNodeProcessor msg -> ActionResult msg
+processPossiblyMissingPageNode function allowNotFound record actionState processor =
+    let doit = (\error state path maybeContents ->
+                    case maybeContents of
+                        Nothing ->
+                            processor error state Nothing
+                        Just contents ->
+                            case parseNode contents of
+                                Err err ->
+                                    error
+                                    <| "Error parsing node: " ++ (toString err)
+                                Ok node ->
+                                    processor error state
+                                        <| Just { node | path = path }
+               )
+    in
+        processPossiblyMissingPageContents
+            function allowNotFound record actionState doit
+
+-- Do the uninteresting part of processing the Node from a just-read
+-- (or just-written) page.
+-- Call `processor` to do the actual work.
+processPageNode : String -> IndexingRecord msg -> IndexingActionState msg -> PageNodeProcessor msg -> ActionResult msg
+processPageNode function record actionState processor =
     let p = (\error state node ->
                  case node of
                      Nothing ->
@@ -312,7 +367,7 @@ processPageContents function record actionState processor =
                          processor error state n
             )
     in
-        processPossiblyMissingPageContents
+        processPossiblyMissingPageNode
             function False record actionState p
 
 permindex : Node msg -> Maybe String
@@ -334,7 +389,7 @@ readTagPage tag record actionState =
                                      <| downloadPage (tagFile tag name)
                     )
     in
-        processPageContents "readTagPage" record actionState processor
+        processPageNode "readTagPage" record actionState processor
 
 -- Expects record.result to be the result of readTagPage
 -- If successful, and the parsed page is a list of `LookupPageAtom`s,
@@ -344,7 +399,6 @@ readTagPage tag record actionState =
 -- adds `Action`s to the list to create a new index page, link the
 -- current index to it via `next`, and update "tags/<tag>/index.html" to
 -- point to the new page.
--- TODO
 writeNodePathToTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeNodePathToTagPage tag record actionState =
     let processor = (\error state node ->
@@ -364,7 +418,7 @@ writeNodePathToTagPage tag record actionState =
                                          error "Index node not a list."
                     )
     in
-        processPageContents "writeNodePathToTagPage" record actionState processor
+        processPageNode "writeNodePathToTagPage" record actionState processor
 
 stateCmd : IndexingWrapper msg -> IndexingActionState msg -> Cmd msg
 stateCmd wrapper actionState =
@@ -482,7 +536,6 @@ writeNode node record actionState =
        ii) Splice <index> out of the previous/next chain.
        
 -}
--- TODO
 removedActions : Dict String String -> List (IndexingAction msg)
 removedActions removed =
     List.map removedTagActions (Dict.toList removed)
