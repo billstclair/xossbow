@@ -1,7 +1,7 @@
 ----------------------------------------------------------------------
 --
 -- Indexing.elm
--- Page indexing. See Indexing.md.
+-- Page indexing. See ../../Indexing.md.
 -- Copyright (c) 2017 Bill St. Clair <billstclair@gmail.com>
 -- Some rights reserved.
 -- Distributed under the MIT License
@@ -82,7 +82,11 @@ createTag backend wrapper authorization tag description =
 -- TODO
 updateTagIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 updateTagIndex tag description record actionState =
-    Ok Cmd.none
+    let processor = (\error state node ->
+                         Ok Cmd.none
+                    )
+    in    
+        processPossiblyMissingPageContents "updateTagIndex" True record actionState processor 
 
 -- TODO
 readTagsIndex : IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
@@ -258,18 +262,21 @@ uploadPage authorization path content backend wrapper =
 type alias PageContentsProcessor msg =
     (String -> ActionResult msg) -> Types.State -> Node msg -> ActionResult msg
 
+type alias MaybePageContentsProcessor msg =
+    (String -> ActionResult msg) -> Types.State -> Maybe (Node msg) -> ActionResult msg
+
 -- Do the uninteresting part of processing the contents of a just-read
 -- (or just-written) page.
 -- Call `processor` to do the actual work.
-processPageContents : String -> IndexingRecord msg -> IndexingActionState msg -> PageContentsProcessor msg -> ActionResult msg
-processPageContents pageName record actionState processor =
-    let error = actionError pageName
+processPossiblyMissingPageContents : String -> Bool -> IndexingRecord msg -> IndexingActionState msg -> MaybePageContentsProcessor msg -> ActionResult msg
+processPossiblyMissingPageContents function allowNotFound record actionState processor =
+    let error = actionError function
         doit = (\state path contents ->
                     case parseNode contents of
                         Err err ->
                             error <| "Error parsing node: " ++ (toString err)
                         Ok node ->
-                            processor error state { node | path = path }
+                            processor error state <| Just { node | path = path }
                )
     in
         case record.result of
@@ -277,8 +284,15 @@ processPageContents pageName record actionState processor =
                 error "Missing result"
             Just result ->
                 case result of
-                    Err (err, _) ->
-                        error <| toString err
+                    Err (err, operation) ->
+                        if err == NotFoundError && allowNotFound then
+                            case operation of
+                                DownloadFile state _ path _ ->
+                                    processor error state Nothing
+                                _ ->
+                                    error "NotFoundError on non-download"
+                        else
+                            error <| toString result
                     Ok operation ->
                         case operation of
                             DownloadFile state _ path (Just contents) ->
@@ -286,7 +300,20 @@ processPageContents pageName record actionState processor =
                             UploadFile state _ _ path contents ->
                                 doit state path contents
                             operation ->
-                                error <| toString operation
+                                error <| toString result
+
+processPageContents : String -> IndexingRecord msg -> IndexingActionState msg -> PageContentsProcessor msg -> ActionResult msg
+processPageContents function record actionState processor =
+    let p = (\error state node ->
+                 case node of
+                     Nothing ->
+                         error "Page does not exist. Can't happen."
+                     Just n ->
+                         processor error state n
+            )
+    in
+        processPossiblyMissingPageContents
+            function False record actionState p
 
 permindex : Node msg -> Maybe String
 permindex node =
@@ -347,28 +374,28 @@ writeNodePathToTagPageInternal : String -> IndexingRecord msg -> IndexingActionS
 writeNodePathToTagPageInternal tag record actionState indexNode list =
     let node = record.node
         path = node.path
+        uploadPath = Types.uploadPath Page path
     in
         case LE.find (\a ->
                           case a of
-                              StringAtom s ->
-                                  s == path
+                              LookupPageAtom s ->
+                                  s == uploadPath
                               _ ->
                                   False
                      )
             list
         of
             Just _ ->
-                Ok
-                <| stateCmd record.wrapper
-                <| Actions.discardAction actionState --don't call `writeNode`
+                Ok <| stateCmd record.wrapper actionState
             Nothing ->
                 if List.length list < record.perPage then
                     -- The new page fits in the current index
-                    let n = Parsers.setNodeContent
-                            (ListAtom <| StringAtom path :: list)
-                            indexNode
-                        s = Parsers.encodeNode n
-                        node2 = case permindex n of
+                    let in2 = { indexNode
+                                    | content =
+                                        ListAtom
+                                        <| LookupPageAtom uploadPath :: list
+                              }
+                        node2 = case permindex in2 of
                                     Nothing ->
                                         node --maybe this should error instead
                                     Just index ->
@@ -376,10 +403,13 @@ writeNodePathToTagPageInternal tag record actionState indexNode list =
                                                       tag index node.indices
                                         in
                                             { node | indices = indices }
-                        as2 = Actions.pushAction (writeNode node2) actionState
+                        as2 = Actions.appendActions
+                              [ writeNode in2
+                              , writeNode node2
+                              ]
+                              actionState
                     in
-                        simpleActionCmd record as2
-                            <| uploadPage record.authorization indexNode.path s
+                        nextAction as2
                 else
                     -- The new page does NOT fit in the current index.
                     -- Need to make a new index.
@@ -414,7 +444,10 @@ writeNewIndexPage tag record actionState indexNode =
                                                       indexNode.plist
                                         , path = tagFile tag newidx
                                         , content = ListAtom
-                                                    [ StringAtom node.path ]
+                                                    [ LookupPageAtom
+                                                          <| Types.uploadPath
+                                                              Page node.path
+                                                    ]
                                     }
                             as2 = Actions.appendActions
                                   [ writeNode newin
