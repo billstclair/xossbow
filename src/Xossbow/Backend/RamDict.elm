@@ -71,12 +71,15 @@ knownPassword : String
 knownPassword =
     "Xossbow"
 
+checkAuthorization : Authorization -> Bool
+checkAuthorization authorization =
+    let { username, password } = authorization
+    in
+        (username == knownUsername) && (password == knownPassword)
+
 authorize : BackendWrapper msg -> BackendOperation -> Authorization -> Cmd msg
 authorize wrapper operation authorization =
-    let { username, password } = authorization
-        succeed = (username == knownUsername)
-                  && (password == knownPassword)
-        task = if succeed then
+    let task = if checkAuthorization authorization then
                    Task.succeed <| operation
                else
                    Task.fail (AuthorizationError, operation)
@@ -86,9 +89,12 @@ authorize wrapper operation authorization =
 uploadFile : State -> BackendWrapper msg -> BackendOperation -> Authorization -> UploadType -> String -> String -> Cmd msg
 uploadFile state wrapper operation authorization uploadType path content =
     let dict = Dict.insert path content <| stateDict state
-        task = Task.succeed
-               <| UploadFile
-                   (DictState dict) authorization uploadType path content
+        task = if checkAuthorization authorization then
+                   Task.succeed
+                       <| UploadFile
+                           (DictState dict) authorization uploadType path content
+               else
+                   Task.fail (AuthorizationError, operation)
     in
         Task.attempt wrapper task
 
