@@ -47,7 +47,7 @@ type alias Node msg =
     , contentType : ContentType
     , rawContent : String
     , content : Atom msg
-    , plist : Plist             --on backend. All properties saved.
+    , plist : Plist String --on backend. All properties saved.
     }
 
 emptyNode : Node msg
@@ -73,10 +73,10 @@ type ContentType
     | Text
     | Code
 
-type alias Plist =
-    List (String, String)
+type alias Plist a =
+    List (String, a)
 
-get : String -> Plist -> Maybe String
+get : String -> Plist a -> Maybe a
 get key plist =
     case plist of
         [] ->
@@ -87,7 +87,7 @@ get key plist =
             else
                 get key rest
 
-set : String -> String -> Plist -> Plist
+set : String -> a -> Plist a -> Plist a
 set key value plist =
     (key, value) :: (List.filter (\(k,_) -> k /= key) plist)
 

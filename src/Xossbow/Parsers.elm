@@ -78,7 +78,7 @@ fillinNodeContent node =
         Ok atom ->
             Ok { node | content = atom }
 
-makeNode : Plist -> String -> Node msg
+makeNode : Plist String -> String -> Node msg
 makeNode plist rawContent =
     let node = { emptyNode
                    | plist = plist
@@ -112,7 +112,7 @@ contentTypeToString contentType =
         Code -> "Code"
         Text -> "Text"
 
-setField : String -> (Plist, Node msg) -> ( String -> Node msg -> Node msg)-> (Plist, Node msg)
+setField : String -> (Plist String, Node msg) -> ( String -> Node msg -> Node msg)-> (Plist String, Node msg)
 setField field (plist, node) setter =
     case Types.get field plist of
         Nothing ->
@@ -120,31 +120,31 @@ setField field (plist, node) setter =
         Just value ->
             (plist, setter value node)
 
-setComment : (Plist, Node msg) -> (Plist, Node msg)
+setComment : (Plist String, Node msg) -> (Plist String, Node msg)
 setComment pn =
     setField "comment" pn (\value node -> { node | comment = value })
 
-setPageTemplate : (Plist, Node msg) -> (Plist, Node msg)
+setPageTemplate : (Plist String, Node msg) -> (Plist String, Node msg)
 setPageTemplate pn =
     setField "pageTemplate" pn (\value node -> { node | pageTemplate = value })
 
-setNodeTemplate : (Plist, Node msg) -> (Plist, Node msg)
+setNodeTemplate : (Plist String, Node msg) -> (Plist String, Node msg)
 setNodeTemplate pn =
     setField "nodeTemplate" pn (\value node -> { node | nodeTemplate = value })
 
-setTitle : (Plist, Node msg) -> (Plist, Node msg)
+setTitle : (Plist String, Node msg) -> (Plist String, Node msg)
 setTitle pn =
     setField "title" pn (\value node -> { node | title = value })
 
-setPath : (Plist, Node msg) -> (Plist, Node msg)
+setPath : (Plist String, Node msg) -> (Plist String, Node msg)
 setPath pn =
     setField "path" pn (\value node -> { node | path = value })
 
-setAuthor : (Plist, Node msg) -> (Plist, Node msg)
+setAuthor : (Plist String, Node msg) -> (Plist String, Node msg)
 setAuthor pn =
     setField "author" pn (\value node -> { node | author = value })
 
-setTime : (Plist, Node msg) -> (Plist, Node msg)
+setTime : (Plist String, Node msg) -> (Plist String, Node msg)
 setTime pn =
     setField "time" pn
         (\value node ->
@@ -163,7 +163,7 @@ parseIndices json =
         Ok pairs ->
             Dict.fromList pairs
 
-setIndices : (Plist, Node msg) -> (Plist, Node msg)
+setIndices : (Plist String, Node msg) -> (Plist String, Node msg)
 setIndices pn =
     setField "indices" pn
         (\value node ->
@@ -173,7 +173,7 @@ setIndices pn =
         )
 
 
-setContentType : (Plist, Node msg) -> (Plist, Node msg)
+setContentType : (Plist String, Node msg) -> (Plist String, Node msg)
 setContentType pn =
     setField "contentType" pn
         (\value node ->
@@ -192,11 +192,11 @@ nodeParser =
         |= keep zeroOrMore (\_ -> True)
         |. Parser.end
 
-parsePlist : String -> Result Error Plist
+parsePlist : String -> Result Error (Plist String)
 parsePlist string =
     Parser.run plistParser string
 
-plistParser : Parser Plist
+plistParser : Parser (Plist String)
 plistParser =
     Parser.delayedCommitMap
         (\x y -> x)
@@ -282,7 +282,7 @@ indicesEncoder dict =
         |> List.map (\(k,v) -> (k, JE.string v))
         |> JE.object        
 
-nodeToPlist : Node msg -> Plist
+nodeToPlist : Node msg -> Plist String
 nodeToPlist node =
     [ ( "version", toString node.version )
     , ( "comment", node.comment )
@@ -304,7 +304,7 @@ escapeValue string =
     in
         String.concat escaped
 
-encodePlist : Plist -> String
+encodePlist : Plist String -> String
 encodePlist plist =
     "{ "
     ++ (String.join "\n, "
@@ -314,15 +314,15 @@ encodePlist plist =
     ++
     "\n }"
 
-removePlistDefaults : Plist -> Plist -> Plist
+removePlistDefaults : Plist String -> Plist String -> Plist String
 removePlistDefaults defaults plist =
     List.filter (\cell -> not <| List.member cell defaults) plist
 
-emptyPlist : Plist
+emptyPlist : Plist String
 emptyPlist =
     nodeToPlist { emptyNode | version = -1 }
 
-strippedPlist : Plist -> Plist
+strippedPlist : Plist String -> Plist String
 strippedPlist plist =
     removePlistDefaults emptyPlist plist
 

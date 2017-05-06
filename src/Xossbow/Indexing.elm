@@ -99,7 +99,9 @@ emptyTagIndexNode tag description index =
             , plist = [ ("tag", tag) ]
         }
 
--- TODO
+-- Expects to have just returned from `readTagIndex` with
+-- the contents of `tag/<tag>/index.txt`, or a missing file error.
+-- Updates the `description`, or creates a new file.
 updateTagIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 updateTagIndex tag description record actionState =
     let index = toString record.perPage
@@ -113,21 +115,90 @@ updateTagIndex tag description record actionState =
                              nextAction
                                  <| Actions.pushAction
                                      (writeNode node)
-                                     actionState
+                                     <| updateBackendState record state actionState
+
                     )
     in    
         processPossiblyMissingPageNode
         "updateTagIndex" True record actionState processor 
 
--- TODO
+-- Check for error on `updateTagIndex` write.
+-- Initiate read of `tag/index.txt`
 readTagsIndex : IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 readTagsIndex record actionState =
-    Ok Cmd.none
+    let processor = (\error state path _ ->
+                         let as2 = updateBackendState record state actionState
+                             cmd = downloadFile
+                                   record.backend
+                                   (wrapBackendResult record.wrapper as2)
+                                   Page
+                                   tagsFile
+                         in
+                             Ok cmd
+                    )
+    in
+        processPossiblyMissingPageContents
+            "readTagsIndex" False record actionState processor
 
--- TODO
+emptyTagsIndexNode : String -> String -> Node msg
+emptyTagsIndexNode tag description =
+    let content = PListAtom [ (tag, StringAtom description) ]
+        node = Types.emptyNode
+        path = tagsFile
+    in
+        { node
+            | nodeTemplate = "tagsIndex"
+            , comment = "Tags"
+            , title = "Tags Index"
+            , author = "Xossbow"
+            , contentType = Types.Json
+            , rawContent = customEncodeAtom 0 content
+            , content = content
+            , path = Types.uploadPath Page path
+        }
+
+-- Expects to have just returned from `readTagsIndex` with
+-- the contents of `tag/index.txt`, or a missing file error.
+-- Updates the `description` for `tag`, or creates a new file.
 updateTagsIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 updateTagsIndex tag description record actionState =
-    Ok Cmd.none
+    let processor =
+            (\error state maybeNode ->
+                 let node = case maybeNode of
+                                Just n ->
+                                    case parseNodeContent n of
+                                        Err err ->
+                                            Err err
+                                        Ok atom ->
+                                            case atom of
+                                                PListAtom plist ->
+                                                    Ok
+                                                    { n | content =
+                                                          PListAtom
+                                                          <| Types.set
+                                                              tag
+                                                              (StringAtom
+                                                                   description)
+                                                              plist
+                                                    }
+                                                _ ->
+                                                    Err "Indexes node not a plist."
+                                Nothing ->
+                                    Ok <| emptyTagsIndexNode tag description
+                         in
+                             case node of
+                                 Err err ->
+                                     error err
+                                 Ok n ->
+                                     nextAction
+                                     <| Actions.pushAction
+                                         (writeNode n)
+                                         <| updateBackendState
+                                             record state actionState
+                    )
+    in    
+        processPossiblyMissingPageNode
+        "updateTagsIndex" True record actionState processor 
 
 {-| Call when a node is created or its tags are changed.
 
@@ -235,7 +306,7 @@ wrapBackendResult wrapper actionState result =
         |> TheState
         |> wrapper
 
--- Initiate a read of "tags/<tag>/index.txt"
+-- Initiate a read of "tag/<tag>/index.txt"
 readTagIndex : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 readTagIndex tag record actionState =
     let path = tagIndexFile tag
@@ -397,7 +468,7 @@ readTagPage tag record actionState =
 -- If the list is already of length record.perPage or greater,
 -- and its `next` link is blank, will instead
 -- adds `Action`s to the list to create a new index page, link the
--- current index to it via `next`, and update "tags/<tag>/index.html" to
+-- current index to it via `next`, and update "tag/<tag>/index.html" to
 -- point to the new page.
 writeNodePathToTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeNodePathToTagPage tag record actionState =
@@ -515,7 +586,7 @@ writeNewIndexPage tag record actionState indexNode =
                             nextAction as2
 
 -- TODO
--- Write `tags/<tag>/index.txt` back to the server.
+-- Write `tag/<tag>/index.txt` back to the server.
 writeTagIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeTagIndex tag newidx record actionState =
     Ok Cmd.none
