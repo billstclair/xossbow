@@ -604,14 +604,9 @@ writeTagIndex tag newidx record actionState =
 writeNode : Node msg -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeNode node record actionState =
     let n = Parsers.setNodeContent node.content node
-        processor = (\error state _ _ ->
-                         actionCmd record actionState state
-                         <| uploadPage record.authorization n.path n.rawContent
-                    )
     in
-        processPossiblyMissingPageContents
-            "writeNode" True record actionState processor
-
+        simpleActionCmd record actionState
+            <| uploadPage record.authorization n.path n.rawContent
 
 {- For each "removed" (<tag>, <index>) pair:
   1) Read tag/<tag>/<index>.txt
