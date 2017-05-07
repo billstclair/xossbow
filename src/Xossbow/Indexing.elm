@@ -232,7 +232,7 @@ updateIndices backend wrapper authorization perPage node added removed =
                  , backend = backend
                  , wrapper = wrapper
                  , authorization = authorization
-                 , result = Nothing
+                 , result = Just (Ok <| DownloadFile backend.state Page "" Nothing)
                  }
         actions = List.append (addedActions added) (removedActions removed)
         state = TheState <| makeActionState record actions
@@ -493,20 +493,21 @@ stateCmd : IndexingWrapper msg -> IndexingActionState msg -> Cmd msg
 stateCmd wrapper actionState =
     Task.perform wrapper (Task.succeed <| TheState actionState)
 
+isLookupPageAtom : String -> Atom msg -> Bool
+isLookupPageAtom uploadPath atom =
+    case atom of
+        LookupPageAtom s ->
+            s == uploadPath
+        _ ->
+            False
+
 writeNodePathToTagPageInternal : String -> IndexingRecord msg -> IndexingActionState msg -> Node msg -> List (Atom msg) -> ActionResult msg
 writeNodePathToTagPageInternal tag record actionState indexNode list =
     let node = record.node
         path = node.path
         uploadPath = Types.uploadPath Page path
     in
-        case LE.find (\a ->
-                          case a of
-                              LookupPageAtom s ->
-                                  s == uploadPath
-                              _ ->
-                                  False
-                     )
-            list
+        case LE.find (isLookupPageAtom uploadPath) list
         of
             Just _ ->
                 Ok <| stateCmd record.wrapper actionState
@@ -632,15 +633,60 @@ removedTagActions (tag, index) =
         , removeNodePathFromTagPage tag
         ]
 
--- TODO
+-- Initiate a read of a tag file.
+-- Error checks the preceding command and updates the backend state from it.
 readTagPageFromIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 readTagPageFromIndex tag index record actionState =
-    Ok Cmd.none
-
--- TODO
+    let page = tagFile tag index
+        processor = (\_ state _ _ ->
+                         actionCmd record actionState state
+                             <| downloadPage page
+                    )
+    in
+        processPossiblyMissingPageContents
+            "readTagPageFromIndex" True record actionState processor
+        
+-- Expects `record.result` to be the result of `readTagPageFromIndex`.
+-- Removes the path for `record.node` from that page, and
+-- initiates a write.
+-- TODO: Something smart when deleting leaves an empty page.
 removeNodePathFromTagPage : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 removeNodePathFromTagPage tag record actionState =
-    Ok Cmd.none
+    let node = record.node
+        path = node.path
+        uploadPath = Types.uploadPath Page path
+        updateState = (\state -> updateBackendState record state actionState)
+        updateContent = (\state atom list node ->
+                             let as2 = updateState state
+                                 content = ListAtom <| LE.remove atom list
+                                 n2 = { node | content = content }
+                             in
+                                 nextAction
+                                 <| Actions.pushAction (writeNode n2) as2
+                        )
+        processor = (\error state node ->
+                         case parseNodeContent node of
+                             Err err ->
+                                 error
+                                 <| "Error parsing node: " ++ (toString err)
+                             Ok content ->
+                                 case content of
+                                     ListAtom list ->
+                                         case LE.find
+                                             (isLookupPageAtom uploadPath)
+                                             list
+                                         of
+                                             Nothing ->
+                                                 Ok <| stateCmd record.wrapper
+                                                     <| updateState state
+                                             Just atom ->
+                                                 updateContent state atom list node
+                                     x ->
+                                         error
+                                         <| "Expecting ListAtom: " ++ (toString x)
+                    )
+    in
+        processPageNode "removeNodePathFromTagPage" record actionState processor
 
 tagsFile : String
 tagsFile =
