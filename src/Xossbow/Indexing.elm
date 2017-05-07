@@ -111,12 +111,10 @@ updateTagIndex tag description record actionState =
                                             { n | comment = description }
                                         Nothing ->
                                             emptyTagIndexNode tag description index
+                             as2 = updateBackendState record state actionState
                          in
                              nextAction
-                                 <| Actions.pushAction
-                                     (writeNode node)
-                                     <| updateBackendState record state actionState
-
+                                 <| Actions.pushAction (writeNode node) as2
                     )
     in    
         processPossiblyMissingPageNode
@@ -129,7 +127,7 @@ readTagsIndex record actionState =
     let processor = (\error state path _ ->
                          let as2 = updateBackendState record state actionState
                              cmd = downloadFile
-                                   record.backend
+                                   (getBackend as2)
                                    (wrapBackendResult record.wrapper as2)
                                    Page
                                    tagsFile
@@ -338,7 +336,7 @@ actionCmd : IndexingRecord msg -> IndexingActionState msg -> Types.State -> (Bac
 actionCmd record actionState state makeCmd =
     let as2 = updateBackendState record state actionState
     in
-        simpleActionCmd record as2 makeCmd
+        simpleActionCmd (Actions.getState as2) as2 makeCmd
                     
 -- Return a successful result with the value of `makeCmd`,
 simpleActionCmd : IndexingRecord msg -> IndexingActionState msg -> (Backend msg -> BackendWrapper msg -> Cmd msg) -> ActionResult msg
@@ -585,17 +583,35 @@ writeNewIndexPage tag record actionState indexNode =
                         in
                             nextAction as2
 
--- TODO
--- Write `tag/<tag>/index.txt` back to the server.
+-- Expects record.result to be the result of `readTagIndex`,
+-- the contents of `tag/<tag>/index.txt`.
+-- Changes it to point to `newidx` and initiates write.
 writeTagIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeTagIndex tag newidx record actionState =
-    Ok Cmd.none
+    let processor = (\error state node ->
+                         let path = Types.uploadPath Page <| tagIndexFile tag
+                             n = { node | content = LookupPageAtom path }
+                             as2 = updateBackendState record state actionState
+                         in
+                             nextAction
+                                 <| Actions.pushAction (writeNode n) as2
+                    )
+    in
+        processPageNode "writeTagIndex" record actionState processor
 
--- TODO
 -- Write `node` to the server
+-- Assumes the `content` is up-to-date, but `rawContent` may not be.
 writeNode : Node msg -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeNode node record actionState =
-    Ok Cmd.none
+    let n = Parsers.setNodeContent node.content node
+        processor = (\error state _ _ ->
+                         actionCmd record actionState state
+                         <| uploadPage record.authorization n.path n.rawContent
+                    )
+    in
+        processPossiblyMissingPageContents
+            "writeNode" True record actionState processor
+
 
 {- For each "removed" (<tag>, <index>) pair:
   1) Read tag/<tag>/<index>.txt
