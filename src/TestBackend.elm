@@ -13,9 +13,11 @@ module TestBackend exposing (..)
 
 import Xossbow.Types as Types
     exposing ( UploadType(..), Authorization
-             , BackendOperation, BackendWrapper, Backend
-             , authorize_, uploadFile
+             , BackendOperation, BackendWrapper, Backend, BackendResult
+             , BackendError(..)
+             , authorize_, uploadFile, downloadFile, updateStateFromResult
              )
+import Xossbow.Backend.RamDict as RamDict
 import Xossbow.Backend.ApachePost as ApachePost
 
 import Html exposing ( Html, Attribute
@@ -27,10 +29,15 @@ import Html.Events exposing ( onClick, onInput )
 
 log = Debug.log
 
--- This will eventually be a list, with a selector
-backend : Backend Msg
-backend =
-    ApachePost.backend
+backends : List (String, Backend Msg)
+backends =
+    [ ("RamDict", RamDict.backend)
+    , ("ApachePost", ApachePost.backend)
+    ]
+
+stringToBackend : String -> Backend Msg
+stringToBackend string =
+    Maybe.withDefault RamDict.backend <| Types.get string backends
 
 main =
     Html.program
@@ -42,7 +49,9 @@ main =
 
 type alias Model =
     { authorization : Maybe Authorization
-    , result : Maybe (Result (String , BackendOperation) BackendOperation)
+    , backendType: String
+    , backend : Backend Msg
+    , result : Maybe BackendResult
     , username : String
     , password : String
     , uploadType : UploadType
@@ -52,12 +61,15 @@ type alias Model =
 
 emptyOperation : BackendOperation
 emptyOperation =
-    Types.Authorize backend.state <| Authorization "" ""
+    Types.Authorize (.state RamDict.backend) <| Authorization "" ""
 
 init : ( Model, Cmd msg)
 init =
     ( { authorization = Nothing
-      , result = Just <| Err ("No operation initiated.", emptyOperation)
+      , backendType = "RamDict"
+      , backend = RamDict.backend
+      , result = Just <| Err ( OtherBackendError "No operation initiated."
+                             , emptyOperation)
       , username = ""
       , password = ""
       , uploadType = Page
@@ -71,11 +83,12 @@ type Msg
     = UpdateUsername String
     | UpdatePassword String
     | UpdateUploadType String
+    | UpdateBackend String
     | UpdatePath String
     | UpdateContent String
     | Authorize
     | Upload
-    | Receive (Result (String, BackendOperation) BackendOperation)
+    | Receive BackendResult
           
 stringToUploadType : String -> UploadType
 stringToUploadType string =
@@ -100,6 +113,12 @@ update msg model =
           ( { model | uploadType = stringToUploadType uploadType }
           , Cmd.none
           )
+      UpdateBackend backendType ->
+          ( { model | backend = stringToBackend backendType
+            , authorization = Nothing
+            }
+          , Cmd.none
+          )
       UpdatePath path ->
           ( { model | path = path }
           , Cmd.none
@@ -110,20 +129,20 @@ update msg model =
           )
       Authorize ->
           ( { model | result = Nothing }
-            , authorize_ backend Receive model.username model.password
+            , authorize_ model.backend Receive model.username model.password
           )
       Upload ->
           case model.authorization of
               Nothing ->
                   ( { model
                         | result =
-                            Just <| Err ("Not authorized.", emptyOperation)
+                            Just <| Err (AuthorizationError, emptyOperation)
                     }
                   , Cmd.none
                   )
               Just authorization ->
                   ( { model | result = Nothing }
-                  , uploadFile backend Receive
+                  , uploadFile model.backend Receive
                       authorization
                       model.uploadType
                       model.path
@@ -132,7 +151,7 @@ update msg model =
       Receive result ->
           let authorization =
                   case result of
-                      Ok (Types.Authorize _ auth) ->
+                      Ok (Types.Authorize state auth) ->
                           Just auth
                       _ ->
                           model.authorization
@@ -140,6 +159,7 @@ update msg model =
               ( { model
                     | result = Just result
                     , authorization = authorization
+                    , backend = updateStateFromResult result model.backend
                 }
               , Cmd.none
               )
@@ -148,10 +168,25 @@ br : Html msg
 br =
     Html.br [][]
 
+backendSelector : Model -> Html Msg
+backendSelector model =
+    select [ onInput UpdateBackend ]
+    <| List.map (\(name, _) ->
+                  option [ value name
+                         , selected (name == model.backendType)
+                         ]
+                  [ text name ]
+                )
+                backends
+
 view : Model -> Html Msg
 view model =
     div [ style [("margin", "auto")] ]
         [ p [] [ text <| resultString model ]
+        , p []
+            [ text "backend: "
+            , backendSelector model
+            ]
         , p []
             [ text "username: "
             , input [ type_ "text"
@@ -220,7 +255,7 @@ resultString model =
         Nothing -> "Awaiting backend response."
         Just res ->
             case res of
-                Err (msg, _) ->
-                    msg
+                Err (err, operation) ->
+                    Types.backendErrorToString err operation
                 Ok _ ->
                     "Success!"

@@ -23,6 +23,7 @@ module Xossbow.Types exposing ( Node, nodeVersion, emptyNode
                               , authorize, authorize_
                               , uploadFile, deleteFile
                               , uploadTypeToString, settingsPath, uploadPath
+                              , backendErrorToString
                               )
 
 import HtmlTemplate.Types exposing ( Atom(..) )
@@ -139,6 +140,22 @@ type BackendError
     = AuthorizationError
     | NotFoundError
     | OtherBackendError String
+
+backendErrorToString : BackendError -> BackendOperation -> String
+backendErrorToString err operation =
+    case err of
+        AuthorizationError ->
+            "Authorization error"
+        NotFoundError ->
+            let path = case operation of
+                           DownloadFile _ uploadType name _ ->
+                               uploadPath uploadType name
+                           _ ->
+                               "unknown"
+            in
+                "File not found: " ++ path
+        OtherBackendError string ->
+            string
 
 -- Backends promise not to change their state if an operation
 -- returns an error
