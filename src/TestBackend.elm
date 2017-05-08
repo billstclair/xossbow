@@ -17,11 +17,16 @@ import Xossbow.Types as Types
              , BackendError(..)
              , authorize_, uploadFile, downloadFile, updateStateFromResult
              )
+import Xossbow.Indexing exposing ( IndexingState, IndexingWrapper
+                                 , IndexingResult
+                                 , createTag, index, continueIndexing
+                                 , tagsFile, tagIndexFile, tagFile
+                                 )
 import Xossbow.Backend.RamDict as RamDict
 import Xossbow.Backend.ApachePost as ApachePost
 
 import Html exposing ( Html, Attribute
-                     , div, p, text, input, select, option, button
+                     , div, p, text, input, select, option, button, pre
                      )
 import Html.Attributes as Attributes
     exposing ( type_, style, href, rows, cols, class, value, selected )
@@ -58,25 +63,39 @@ type alias Model =
     , path : String
     , content : String
     , downloadResult : Maybe BackendResult
+    , tagsResult : Maybe String
     }
 
 emptyOperation : BackendOperation
 emptyOperation =
     Types.Authorize (.state RamDict.backend) <| Authorization "" ""
 
+makeBackendResult : String -> Maybe BackendResult
+makeBackendResult msg =
+    Just
+    <| Err ( OtherBackendError msg
+           , emptyOperation
+           )
+
+defaultAuthorization : Authorization
+defaultAuthorization =
+    { username = "Xossbow"
+    , password = "Xossbow"
+    }
+
 init : ( Model, Cmd msg)
 init =
-    ( { authorization = Nothing
+    ( { authorization = Just defaultAuthorization
       , backendType = "RamDict"
       , backend = RamDict.backend
-      , result = Just <| Err ( OtherBackendError "No operation initiated."
-                             , emptyOperation)
+      , result = makeBackendResult "No operation initiated."
       , username = ""
       , password = ""
       , uploadType = Page
       , path = "foo"
       , content = "something"
       , downloadResult = Nothing
+      , tagsResult = Nothing
       }
     , Cmd.none
     )
@@ -91,8 +110,11 @@ type Msg
     | Authorize
     | Upload
     | Download
+    | ReadTags
     | Receive BackendResult
     | ReceiveDownload BackendResult
+    | ReceiveIndexing (IndexingState Msg)
+    | ReceiveTags BackendResult
           
 stringToUploadType : String -> UploadType
 stringToUploadType string =
@@ -101,6 +123,10 @@ stringToUploadType string =
         "template" -> Template
         "image" -> Image
         _ -> Page
+
+downloadTags : Model -> Cmd Msg
+downloadTags model =
+    downloadFile model.backend ReceiveTags Page tagsFile
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -119,7 +145,10 @@ update msg model =
           )
       UpdateBackend backendType ->
           ( { model | backend = stringToBackend backendType
-            , authorization = Nothing
+            , authorization = if backendType == "RamDict" then
+                                  Just defaultAuthorization
+                              else
+                                  Nothing
             }
           , Cmd.none
           )
@@ -158,6 +187,10 @@ update msg model =
               model.uploadType
               model.path
           )
+      ReadTags ->
+          ( { model | tagsResult = Nothing }
+          , downloadTags model
+          )
       Receive result ->
           let authorization =
                   case result of
@@ -180,6 +213,58 @@ update msg model =
             }
           , Cmd.none
           )
+      ReceiveIndexing state ->
+          case log "  " <| continueIndexing (log "ReceiveIndexing" state) of
+              Err (backend, msg) ->
+                  ( { model
+                        | backend = backend
+                        , result = makeBackendResult msg
+                    }
+                  , Cmd.none
+                  )
+              Ok (maybeBackend, cmd) ->
+                  case maybeBackend of
+                      Nothing ->
+                          ( model, cmd )
+                      Just backend ->
+                          let m = { model | backend = backend }
+                          in
+                              ( m
+                              , case m.tagsResult of
+                                    Nothing ->
+                                        Cmd.batch [cmd, downloadTags m]
+                                    Just _ ->
+                                        cmd
+                              )
+      ReceiveTags result ->
+          case result of
+              Err (NotFoundError, _) ->
+                  case model.authorization of
+                      Nothing ->
+                          ( { model
+                                | tagsResult = Just "Authorize to create tags index."
+                            }
+                          , Cmd.none
+                          )
+                      Just authorization ->
+                          ( model
+                          , createTag model.backend ReceiveIndexing authorization
+                              "blog" "Blog"
+                          )
+              Err (err, operation) ->
+                  ( { model
+                        | tagsResult
+                            = Just <| Types.backendErrorToString err operation
+                    }
+                  , Cmd.none
+                  )
+              Ok operation ->
+                  ( { model
+                        | backend = updateStateFromResult result model.backend
+                        , tagsResult = Just <| Types.downloadedContent operation
+                    }
+                  , Cmd.none
+                  )
 
 br : Html msg
 br =
@@ -268,6 +353,17 @@ view model =
                 [ text "Upload" ]
             ]
         , renderDownloadResult model.downloadResult
+        , p []
+            [ button [ onClick ReadTags ]
+                  [ text "Read Tags Index" ]
+            , case model.tagsResult of
+                  Nothing ->
+                      text ""
+                  Just string ->
+                      pre []
+                          [ text string ]
+            ]
+            
         ]
 
 renderDownloadResult : Maybe (BackendResult) -> Html Msg
@@ -298,8 +394,8 @@ renderDownloadResult maybeResult =
                 p []
                     [ text "path: "
                     , text path
-                    , br
-                    , text content
+                    , pre []
+                        [ text content ]
                     ]
 
 resultString : Model -> String

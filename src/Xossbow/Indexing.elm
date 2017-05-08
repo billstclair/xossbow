@@ -12,6 +12,7 @@
 module Xossbow.Indexing exposing ( IndexingState, IndexingWrapper
                                  , IndexingResult
                                  , createTag, index, continueIndexing
+                                 , tagsFile, tagDir, tagIndexFile, tagFile
                                  )
 
 import Xossbow.Types as Types exposing ( Node, Plist, UploadType(..)
@@ -34,6 +35,7 @@ import HtmlTemplate.EncodeDecode exposing ( customEncodeAtom )
 import Dict exposing ( Dict )
 import List.Extra as LE
 import Task
+import Debug exposing ( log )
 
 type IndexingState msg
     = TheState (IndexingActionState msg)
@@ -63,7 +65,7 @@ type alias IndexingResult msg =
 
     createTag backend wrapper tag description
 -}
-createTag : Backend msg -> IndexingWrapper msg -> Authorization -> String -> String -> IndexingResult msg
+createTag : Backend msg -> IndexingWrapper msg -> Authorization -> String -> String -> Cmd msg
 createTag backend wrapper authorization tag description =
     let record = { perPage = 10
                  , node = Types.emptyNode
@@ -79,7 +81,11 @@ createTag backend wrapper authorization tag description =
                   ]
         state = TheState <| makeActionState record actions
     in
-        continueIndexing state
+        case continueIndexing state of
+            Err _ ->
+                Cmd.none
+            Ok (_, cmd) ->
+                cmd
 
 emptyTagIndexNode : String -> String -> String -> Node msg
 emptyTagIndexNode tag description index =
@@ -95,8 +101,30 @@ emptyTagIndexNode tag description index =
             , contentType = Types.Json
             , rawContent = customEncodeAtom 0 content
             , content = content
-            , path = Types.uploadPath Page path
-            , plist = [ ("tag", tag) ]
+            , path = path
+            , plist = [ ("tag", tag)
+                      , ("permindex", index)
+                      ]
+        }
+
+emptyTagNode : String -> String -> String -> Node msg
+emptyTagNode tag description index =
+    let content = ListAtom []
+        node = Types.emptyNode
+        path = tagFile tag index
+    in
+        { node
+            | nodeTemplate = "index"
+            , comment = description
+            , title = "Index page for tag: " ++ tag
+            , author = "Xossbow"
+            , contentType = Types.Json
+            , rawContent = customEncodeAtom 0 content
+            , content = content
+            , path = path
+            , plist = [ ("tag", tag)
+                      , ("permindex", index)
+                      ]
         }
 
 -- Expects to have just returned from `readTagIndex` with
@@ -111,10 +139,19 @@ updateTagIndex tag description record actionState =
                                             { n | comment = description }
                                         Nothing ->
                                             emptyTagIndexNode tag description index
-                             as2 = updateBackendState record state actionState
+                             actions = case maybeNode of
+                                           Just _ ->
+                                               [ writeNode node ]
+                                           Nothing ->
+                                               let n = emptyTagNode
+                                                       tag description index
+                                               in
+                                                   [ writeNode n
+                                                   , writeNode node
+                                                   ]
                          in
                              nextAction
-                                 <| Actions.pushAction (writeNode node) as2
+                                 <| Actions.appendActions actions actionState
                     )
     in    
         processPossiblyMissingPageNode
@@ -152,7 +189,7 @@ emptyTagsIndexNode tag description =
             , contentType = Types.Json
             , rawContent = customEncodeAtom 0 content
             , content = content
-            , path = Types.uploadPath Page path
+            , path = path
         }
 
 -- Expects to have just returned from `readTagsIndex` with
@@ -189,10 +226,7 @@ updateTagsIndex tag description record actionState =
                                      error err
                                  Ok n ->
                                      nextAction
-                                     <| Actions.pushAction
-                                         (writeNode n)
-                                         <| updateBackendState
-                                             record state actionState
+                                     <| Actions.pushAction (writeNode n) actionState
                     )
     in    
         processPossiblyMissingPageNode
@@ -209,7 +243,7 @@ Use the returned value to update the `Backend` in your model, or to return the
 When you get a message resulting from the `IndexingWrapper` arg, pass the
 wrapped `IndexingState` to `continueIndexing`.
 -}
-index : Backend msg -> IndexingWrapper msg -> Authorization -> Int -> Maybe (Node msg) -> Node msg -> IndexingResult msg
+index : Backend msg -> IndexingWrapper msg -> Authorization -> Int -> Maybe (Node msg) -> Node msg -> Cmd msg
 index backend wrapper authorization perPage oldNode newNode =
     case oldNode of
         Nothing ->
@@ -225,7 +259,7 @@ index backend wrapper authorization perPage oldNode newNode =
                 updateIndices
                     backend wrapper authorization perPage newNode added removed
 
-updateIndices : Backend msg -> IndexingWrapper msg -> Authorization -> Int -> Node msg -> Dict String String -> Dict String String -> IndexingResult msg
+updateIndices : Backend msg -> IndexingWrapper msg -> Authorization -> Int -> Node msg -> Dict String String -> Dict String String -> Cmd msg
 updateIndices backend wrapper authorization perPage node added removed =
     let record = { perPage = perPage
                  , node = node
@@ -237,13 +271,40 @@ updateIndices backend wrapper authorization perPage node added removed =
         actions = List.append (addedActions added) (removedActions removed)
         state = TheState <| makeActionState record actions
     in
-        continueIndexing state
+        case continueIndexing state of
+            Err _ ->
+                Cmd.none
+            Ok (_, cmd) ->
+                cmd
 
 getBackend : ActionState (IndexingRecord msg) msg -> Backend msg
 getBackend actions =
     let record = Actions.getState actions
     in
         record.backend
+
+updatedBackend : IndexingActionState msg -> Backend msg
+updatedBackend actionState =
+    let record = Actions.getState actionState
+    in
+        case record.result of
+            Nothing ->
+                record.backend
+            Just result ->
+                Types.updateStateFromResult result record.backend
+
+updatedActionState : IndexingActionState msg -> IndexingActionState msg
+updatedActionState actionState =
+    let record = Actions.getState actionState
+    in
+        case record.result of
+            Nothing ->
+                actionState
+            Just result ->
+                let backend = Types.updateStateFromResult result record.backend
+                    r2 = { record | backend = backend }
+                in
+                    Actions.setState r2 actionState
 
 {-| Continues indexing via the state in the wrapper passed to `index`
 or `continueIndexing`.
@@ -257,7 +318,9 @@ continueIndexing (TheState state) =
             if cmd /= Cmd.none then
                 Ok (Nothing, cmd)
             else if Actions.isEmpty state then
-                Ok (Just <| getBackend state, Cmd.none)
+                let backend = updatedBackend state
+                in
+                    Ok (Just <| backend, Cmd.none)
             else
                 continueIndexing (TheState state)
 
@@ -494,10 +557,10 @@ stateCmd wrapper actionState =
     Task.perform wrapper (Task.succeed <| TheState actionState)
 
 isLookupPageAtom : String -> Atom msg -> Bool
-isLookupPageAtom uploadPath atom =
+isLookupPageAtom path atom =
     case atom of
         LookupPageAtom s ->
-            s == uploadPath
+            s == path
         _ ->
             False
 
@@ -505,9 +568,8 @@ writeNodePathToTagPageInternal : String -> IndexingRecord msg -> IndexingActionS
 writeNodePathToTagPageInternal tag record actionState indexNode list =
     let node = record.node
         path = node.path
-        uploadPath = Types.uploadPath Page path
     in
-        case LE.find (isLookupPageAtom uploadPath) list
+        case LE.find (isLookupPageAtom path) list
         of
             Just _ ->
                 Ok <| stateCmd record.wrapper actionState
@@ -517,7 +579,7 @@ writeNodePathToTagPageInternal tag record actionState indexNode list =
                     let in2 = { indexNode
                                     | content =
                                         ListAtom
-                                        <| LookupPageAtom uploadPath :: list
+                                        <| LookupPageAtom path :: list
                               }
                         node2 = case permindex in2 of
                                     Nothing ->
@@ -568,10 +630,7 @@ writeNewIndexPage tag record actionState indexNode =
                                                       indexNode.plist
                                         , path = tagFile tag newidx
                                         , content = ListAtom
-                                                    [ LookupPageAtom
-                                                          <| Types.uploadPath
-                                                              Page node.path
-                                                    ]
+                                                    [ LookupPageAtom node.path ]
                                     }
                             as2 = Actions.appendActions
                                   [ writeNode newin
@@ -590,24 +649,27 @@ writeNewIndexPage tag record actionState indexNode =
 writeTagIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeTagIndex tag newidx record actionState =
     let processor = (\error state node ->
-                         let path = Types.uploadPath Page <| tagIndexFile tag
+                         let path = tagIndexFile tag
                              n = { node | content = LookupPageAtom path }
-                             as2 = updateBackendState record state actionState
                          in
                              nextAction
-                                 <| Actions.pushAction (writeNode n) as2
+                                 <| Actions.pushAction (writeNode n) actionState
                     )
     in
         processPageNode "writeTagIndex" record actionState processor
 
 -- Write `node` to the server
 -- Assumes the `content` is up-to-date, but `rawContent` may not be.
+-- If there's a result, uses it to update the backend
 writeNode : Node msg -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeNode node record actionState =
     let n = Parsers.setNodeContent node.content node
+        content = Parsers.encodeNode n
+        as2 = updatedActionState actionState
+        r2 = Actions.getState as2
     in
-        simpleActionCmd record actionState
-            <| uploadPage record.authorization n.path n.rawContent
+        simpleActionCmd r2 as2
+            <| uploadPage r2.authorization n.path content
 
 {- For each "removed" (<tag>, <index>) pair:
   1) Read tag/<tag>/<index>.txt
@@ -637,10 +699,10 @@ removedTagActions (tag, index) =
 -- Error checks the preceding command and updates the backend state from it.
 readTagPageFromIndex : String -> String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 readTagPageFromIndex tag index record actionState =
-    let page = tagFile tag index
+    let path = tagFile tag index
         processor = (\_ state _ _ ->
                          actionCmd record actionState state
-                             <| downloadPage page
+                             <| downloadPage path
                     )
     in
         processPossiblyMissingPageContents
@@ -654,15 +716,13 @@ removeNodePathFromTagPage : String -> IndexingRecord msg -> IndexingActionState 
 removeNodePathFromTagPage tag record actionState =
     let node = record.node
         path = node.path
-        uploadPath = Types.uploadPath Page path
         updateState = (\state -> updateBackendState record state actionState)
-        updateContent = (\state atom list node ->
-                             let as2 = updateState state
-                                 content = ListAtom <| LE.remove atom list
+        updateContent = (\atom list node ->
+                             let content = ListAtom <| LE.remove atom list
                                  n2 = { node | content = content }
                              in
                                  nextAction
-                                 <| Actions.pushAction (writeNode n2) as2
+                                 <| Actions.pushAction (writeNode n2) actionState
                         )
         processor = (\error state node ->
                          case parseNodeContent node of
@@ -673,14 +733,14 @@ removeNodePathFromTagPage tag record actionState =
                                  case content of
                                      ListAtom list ->
                                          case LE.find
-                                             (isLookupPageAtom uploadPath)
+                                             (isLookupPageAtom path)
                                              list
                                          of
                                              Nothing ->
                                                  Ok <| stateCmd record.wrapper
                                                      <| updateState state
                                              Just atom ->
-                                                 updateContent state atom list node
+                                                 updateContent atom list node
                                      x ->
                                          error
                                          <| "Expecting ListAtom: " ++ (toString x)
