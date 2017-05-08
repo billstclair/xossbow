@@ -23,7 +23,7 @@ module Xossbow.Types exposing ( Node, nodeVersion, emptyNode
                               , authorize, authorize_
                               , uploadFile, deleteFile
                               , uploadTypeToString, settingsPath, uploadPath
-                              , backendErrorToString
+                              , backendErrorToString, operationPath
                               )
 
 import HtmlTemplate.Types exposing ( Atom(..) )
@@ -212,6 +212,18 @@ updateStateFromResult result backend =
              Ok operation -> operation
         )
         backend
+
+operationPath : BackendOperation -> String
+operationPath operation =
+    case operation of
+        DownloadFile _ uploadType path _ ->
+            uploadPath uploadType path
+        Authorize _ _ ->
+            ""
+        UploadFile _ _ uploadType path _ ->
+            uploadPath uploadType path
+        DeleteFile _ _ uploadType path ->
+            uploadPath uploadType path
 
 operate : Backend msg -> BackendWrapper msg -> BackendOperation -> Cmd msg
 operate backend wrapper operation =

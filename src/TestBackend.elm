@@ -57,6 +57,7 @@ type alias Model =
     , uploadType : UploadType
     , path : String
     , content : String
+    , downloadResult : Maybe BackendResult
     }
 
 emptyOperation : BackendOperation
@@ -75,6 +76,7 @@ init =
       , uploadType = Page
       , path = "foo"
       , content = "something"
+      , downloadResult = Nothing
       }
     , Cmd.none
     )
@@ -88,7 +90,9 @@ type Msg
     | UpdateContent String
     | Authorize
     | Upload
+    | Download
     | Receive BackendResult
+    | ReceiveDownload BackendResult
           
 stringToUploadType : String -> UploadType
 stringToUploadType string =
@@ -148,6 +152,12 @@ update msg model =
                       model.path
                       model.content
                   )
+      Download ->
+          ( { model | downloadResult = Nothing }
+          , downloadFile model.backend ReceiveDownload
+              model.uploadType
+              model.path
+          )
       Receive result ->
           let authorization =
                   case result of
@@ -163,6 +173,13 @@ update msg model =
                 }
               , Cmd.none
               )
+      ReceiveDownload result ->
+          ( { model
+                | downloadResult = Just (log "ReceiveDownload" result)
+                , backend = updateStateFromResult result model.backend
+            }
+          , Cmd.none
+          )
 
 br : Html msg
 br =
@@ -236,6 +253,9 @@ view model =
                     , value model.path
                     ]
                 []
+            , text " "
+            , button [ onClick Download ]
+                [ text "Download" ]
             , br
             , text "content: "
             , input [ type_ "text"
@@ -247,7 +267,40 @@ view model =
             , button [ onClick Upload ]
                 [ text "Upload" ]
             ]
+        , renderDownloadResult model.downloadResult
         ]
+
+renderDownloadResult : Maybe (BackendResult) -> Html Msg
+renderDownloadResult maybeResult =
+    case maybeResult of
+        Nothing ->
+            text ""
+        Just result ->
+            let (path, content) =
+                    case result of
+                        Err (err, operation) ->
+                            ( Types.operationPath operation
+                            , Types.backendErrorToString err operation
+                            )
+                        Ok operation ->
+                            ( Types.operationPath operation
+                            , case operation of
+                                  Types.DownloadFile _ _ _ maybeContent ->
+                                      case maybeContent of
+                                          Nothing ->
+                                              "<blank>"
+                                          Just content ->
+                                              content
+                                  _ ->
+                                      "<not DownloadFile operation>"
+                            )
+            in
+                p []
+                    [ text "path: "
+                    , text path
+                    , br
+                    , text content
+                    ]
 
 resultString : Model -> String
 resultString model =

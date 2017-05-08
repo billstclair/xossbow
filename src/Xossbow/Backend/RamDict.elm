@@ -88,7 +88,8 @@ authorize wrapper operation authorization =
 
 uploadFile : State -> BackendWrapper msg -> BackendOperation -> Authorization -> UploadType -> String -> String -> Cmd msg
 uploadFile state wrapper operation authorization uploadType path content =
-    let dict = Dict.insert path content <| stateDict state
+    let fullPath = uploadPath uploadType path
+        dict = Dict.insert fullPath content <| stateDict state
         task = if checkAuthorization authorization then
                    Task.succeed
                        <| UploadFile
