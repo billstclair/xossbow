@@ -28,7 +28,7 @@ import Xossbow.Backend.ApachePost as ApachePost
 import Xossbow.Parsers as Parsers
 
 import Html exposing ( Html, Attribute
-                     , div, p, text, input, select, option, button, pre
+                     , div, h2, p, text, input, select, option, button, pre
                      )
 import Html.Attributes as Attributes
     exposing ( type_, style, href, rows, cols, class, value, selected )
@@ -293,13 +293,13 @@ update msg model =
                                       )
       ReceiveDownload result ->
           ( { model
-                | downloadResult = Just (log "ReceiveDownload" result)
+                | downloadResult = Just result
                 , backend = updateStateFromResult result model.backend
             }
           , Cmd.none
           )
       ReceiveIndexing state ->
-          case log "  " <| continueIndexing (log "ReceiveIndexing" state) of
+          case log "  " <| continueIndexing state of
               Err (backend, msg) ->
                   ( { model
                         | backend = backend
@@ -402,8 +402,16 @@ backendSelector model =
 
 view : Model -> Html Msg
 view model =
-    div [ style [("margin", "auto")] ]
-        [ p [] [ text <| resultString model ]
+    div [ style [ ("margin", "auto")
+                , ("margin-top", "5em")
+                , ("width", "40em")
+                , ("padding", "2em")
+                , ("border", "solid")
+                ]
+        ]
+        [ h2 [ style [("text-align", "center")]]
+              [ text "TestBackend" ]
+        , p [] [ text <| resultString model ]
         , p []
             [ text "backend: "
             , backendSelector model

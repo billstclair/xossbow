@@ -371,9 +371,10 @@ wrapBackendResult wrapper actionState result =
 readTagIndex : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 readTagIndex tag record actionState =
     let path = tagIndexFile tag
+        as2 = log "readTagIndex" <| updatedActionState actionState
         cmd = downloadFile
               record.backend
-              (wrapBackendResult record.wrapper actionState)
+              (wrapBackendResult record.wrapper as2)
               Page
               path
     in
@@ -568,11 +569,25 @@ writeNodePathToTagPageInternal : String -> IndexingRecord msg -> IndexingActionS
 writeNodePathToTagPageInternal tag record actionState indexNode list =
     let node = record.node
         path = node.path
+        updateNode = (\_ ->
+                          case permindex indexNode of
+                              Nothing ->
+                                  node --maybe this should error instead
+                              Just index ->
+                                  let indices = Dict.insert
+                                                tag index node.indices
+                                  in
+                                      { node | indices = indices }
+                     )
     in
         case LE.find (isLookupPageAtom path) list
         of
             Just _ ->
-                Ok <| stateCmd record.wrapper actionState
+                let as2 = Actions.pushAction
+                          (writeNode <| (log "writeNode" <| updateNode ()))
+                          actionState
+                in
+                    nextAction as2
             Nothing ->
                 if List.length list < record.perPage then
                     -- The new page fits in the current index
@@ -581,17 +596,9 @@ writeNodePathToTagPageInternal tag record actionState indexNode list =
                                         ListAtom
                                         <| LookupPageAtom path :: list
                               }
-                        node2 = case permindex in2 of
-                                    Nothing ->
-                                        node --maybe this should error instead
-                                    Just index ->
-                                        let indices = Dict.insert
-                                                      tag index node.indices
-                                        in
-                                            { node | indices = indices }
                         as2 = Actions.appendActions
                               [ writeNode in2
-                              , writeNode node2
+                              , writeNode <| updateNode ()
                               ]
                               actionState
                     in
