@@ -312,7 +312,7 @@ encodePlist plist =
                         plist
        )
     ++
-    "\n }"
+    "\n}"
 
 removePlistDefaults : Plist -> Plist -> Plist
 removePlistDefaults defaults plist =

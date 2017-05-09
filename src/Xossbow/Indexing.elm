@@ -320,7 +320,7 @@ continueIndexing (TheState state) =
             else if Actions.isEmpty state then
                 let backend = updatedBackend state
                 in
-                    Ok (Just <| backend, Cmd.none)
+                    Ok (Just backend, Cmd.none)
             else
                 continueIndexing (TheState state)
 

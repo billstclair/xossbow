@@ -16,6 +16,7 @@ import Xossbow.Types as Types
              , BackendOperation, BackendWrapper, Backend, BackendResult
              , BackendError(..)
              , authorize_, uploadFile, downloadFile, updateStateFromResult
+             , Node, emptyNode
              )
 import Xossbow.Indexing exposing ( IndexingState, IndexingWrapper
                                  , IndexingResult
@@ -24,6 +25,7 @@ import Xossbow.Indexing exposing ( IndexingState, IndexingWrapper
                                  )
 import Xossbow.Backend.RamDict as RamDict
 import Xossbow.Backend.ApachePost as ApachePost
+import Xossbow.Parsers as Parsers
 
 import Html exposing ( Html, Attribute
                      , div, p, text, input, select, option, button, pre
@@ -31,6 +33,8 @@ import Html exposing ( Html, Attribute
 import Html.Attributes as Attributes
     exposing ( type_, style, href, rows, cols, class, value, selected )
 import Html.Events exposing ( onClick, onInput )
+import Dict
+import String.Extra as SE
 
 log = Debug.log
 
@@ -62,8 +66,13 @@ type alias Model =
     , uploadType : UploadType
     , path : String
     , content : String
+    , tags : String
     , downloadResult : Maybe BackendResult
     , tagsResult : Maybe String
+    , tag: String
+    , tagResult : Maybe String
+    , tagIndex: String
+    , tagIndexResult : Maybe String
     }
 
 emptyOperation : BackendOperation
@@ -94,8 +103,13 @@ init =
       , uploadType = Page
       , path = "foo"
       , content = "something"
+      , tags = "blog"
       , downloadResult = Nothing
       , tagsResult = Nothing
+      , tag = "blog"
+      , tagResult = Nothing
+      , tagIndex = "10"
+      , tagIndexResult = Nothing
       }
     , Cmd.none
     )
@@ -106,15 +120,24 @@ type Msg
     | UpdateUploadType String
     | UpdateBackend String
     | UpdatePath String
+    | UpdateTags String
     | UpdateContent String
+    | UpdateTag String
+    | UpdateTagIndex String
     | Authorize
     | Upload
     | Download
     | ReadTags
+    | ReadTag
+    | CreateTag (Maybe String)
+    | ReadTagIndex
     | Receive BackendResult
+    | ReceiveUpload (Node Msg) BackendResult
     | ReceiveDownload BackendResult
     | ReceiveIndexing (IndexingState Msg)
     | ReceiveTags BackendResult
+    | ReceiveTag BackendResult
+    | ReceiveTagIndex BackendResult
           
 stringToUploadType : String -> UploadType
 stringToUploadType string =
@@ -127,6 +150,16 @@ stringToUploadType string =
 downloadTags : Model -> Cmd Msg
 downloadTags model =
     downloadFile model.backend ReceiveTags Page tagsFile
+
+downloadTag : Model -> Cmd Msg
+downloadTag model =
+    downloadFile model.backend ReceiveTag Page
+        <| tagIndexFile model.tag
+
+downloadTagIndex : Model -> Cmd Msg
+downloadTagIndex model =
+    downloadFile model.backend ReceiveTagIndex Page
+        <| tagFile model.tag model.tagIndex
 
 update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
@@ -156,8 +189,20 @@ update msg model =
           ( { model | path = path }
           , Cmd.none
           )
+      UpdateTags tags ->
+          ( { model | tags = tags }
+          , Cmd.none
+          )
       UpdateContent content ->
           ( { model | content = content }
+          , Cmd.none
+          )
+      UpdateTag tag ->
+          ( { model | tag = tag }
+          , Cmd.none
+          )
+      UpdateTagIndex index ->
+          ( { model | tagIndex = index }
           , Cmd.none
           )
       Authorize ->
@@ -174,13 +219,7 @@ update msg model =
                   , Cmd.none
                   )
               Just authorization ->
-                  ( { model | result = Nothing }
-                  , uploadFile model.backend Receive
-                      authorization
-                      model.uploadType
-                      model.path
-                      model.content
-                  )
+                  uploadContent authorization model
       Download ->
           ( { model | downloadResult = Nothing }
           , downloadFile model.backend ReceiveDownload
@@ -190,6 +229,32 @@ update msg model =
       ReadTags ->
           ( { model | tagsResult = Nothing }
           , downloadTags model
+          )
+      ReadTag ->
+          ( { model | tagResult = Nothing }
+          , downloadTag model
+          )
+      CreateTag maybeTag ->
+          case model.authorization of
+              Nothing ->
+                  ( { model
+                        | tagsResult = Just "Authorize to create tags index."
+                    }
+                  , Cmd.none
+                  )
+              Just authorization ->
+                  let tag = case maybeTag of
+                                Just tag -> tag
+                                Nothing -> model.tag
+                      description = SE.toTitleCase tag
+                  in
+                  ( model
+                  , createTag model.backend ReceiveIndexing authorization
+                      tag description
+                  )
+      ReadTagIndex ->
+          ( { model | tagIndexResult = Nothing }
+          , downloadTagIndex model
           )
       Receive result ->
           let authorization =
@@ -206,6 +271,26 @@ update msg model =
                 }
               , Cmd.none
               )
+      ReceiveUpload node result ->
+          let (m, _) = update (Receive result) model
+          in
+              case result of
+                  Err _ -> (m, Cmd.none)
+                  Ok _ ->
+                      case m.tagsResult of
+                          Nothing -> (m, Cmd.none)
+                          Just _ ->
+                              case m.authorization of
+                                  Nothing -> (m, Cmd.none)
+                                  Just authorization ->
+                                      ( m
+                                      , index m.backend
+                                          ReceiveIndexing
+                                          authorization
+                                          10
+                                          Nothing
+                                          node
+                                      )
       ReceiveDownload result ->
           ( { model
                 | downloadResult = Just (log "ReceiveDownload" result)
@@ -239,33 +324,67 @@ update msg model =
       ReceiveTags result ->
           case result of
               Err (NotFoundError, _) ->
-                  case model.authorization of
-                      Nothing ->
-                          ( { model
-                                | tagsResult = Just "Authorize to create tags index."
-                            }
-                          , Cmd.none
-                          )
-                      Just authorization ->
-                          ( model
-                          , createTag model.backend ReceiveIndexing authorization
-                              "blog" "Blog"
-                          )
-              Err (err, operation) ->
-                  ( { model
-                        | tagsResult
-                            = Just <| Types.backendErrorToString err operation
-                    }
-                  , Cmd.none
-                  )
-              Ok operation ->
-                  ( { model
-                        | backend = updateStateFromResult result model.backend
-                        , tagsResult = Just <| Types.downloadedContent operation
-                    }
-                  , Cmd.none
-                  )
+                  update (CreateTag <| Just "blog") model
+              _ ->
+                  receiveProperty result (\v -> { model | tagsResult = v })
+      ReceiveTag result ->
+          receiveProperty result (\v -> { model | tagResult = v })
+      ReceiveTagIndex result ->
+          receiveProperty result (\v -> { model | tagIndexResult = v })
 
+uploadContent : Authorization -> Model -> (Model, Cmd Msg)
+uploadContent authorization model =
+    let node = contentNode model
+    in
+        ( { model | result = Nothing }
+        , case model.uploadType of
+              Page ->
+                  uploadFile model.backend (ReceiveUpload node)
+                      authorization
+                      model.uploadType
+                      model.path
+                      <| Parsers.encodeNode node
+              uploadType ->
+                  uploadFile model.backend Receive
+                      authorization
+                      uploadType
+                      model.path
+                      model.content
+    )
+
+contentNode : Model -> Node msg
+contentNode model =
+    let tags = case model.tagsResult of
+                   Nothing -> []
+                   Just _ -> parseTags model.tags
+    in
+      { emptyNode
+          | indices = Dict.fromList
+                      <| List.map (\tag -> (tag, "")) tags
+          , path = model.path
+          , rawContent = model.content
+      }
+
+parseTags : String -> List String
+parseTags string =
+    String.split "," string
+    |> List.map String.trim
+    |> List.filter (\x -> x /= "")
+
+receiveProperty : BackendResult -> (Maybe String -> Model) -> (Model, Cmd Msg)
+receiveProperty result setter =
+    case result of
+        Err (err, operation) ->
+            ( setter (Just <| Types.backendErrorToString err operation)
+            , Cmd.none
+            )
+        Ok operation ->
+            ( let m = setter (Just <| Types.downloadedContent operation)
+              in
+                  { m | backend = updateStateFromResult result m.backend }
+            , Cmd.none
+            )
+                
 br : Html msg
 br =
     Html.br [][]
@@ -342,6 +461,13 @@ view model =
             , button [ onClick Download ]
                 [ text "Download" ]
             , br
+            , text "tags: "
+            , input [ type_ "text"
+                    , onInput UpdateTags
+                    , value model.tags
+                    ]
+                []
+            , br
             , text "content: "
             , input [ type_ "text"
                     , onInput UpdateContent
@@ -363,7 +489,41 @@ view model =
                       pre []
                           [ text string ]
             ]
-            
+        , p []
+            [ text "tag: "
+            , input [ type_ "text"
+                    , onInput UpdateTag
+                    , value model.tag
+                    ]
+                []
+            , text " "
+            , button [ onClick ReadTag ]
+                [ text "Read Tag" ]
+            , text " "
+            , button [ onClick <| CreateTag Nothing ]
+                [ text "Create Tag" ]
+            , case model.tagResult of
+                  Nothing ->
+                      br
+                  Just string ->
+                      pre []
+                          [ text string ]
+            , text "index: "
+            , input [ type_ "text"
+                    , onInput UpdateTagIndex
+                    , value model.tagIndex
+                    ]
+                []
+            , text " "
+            , button [ onClick ReadTagIndex ]
+                [ text "Read Tag Index" ]
+            , case model.tagIndexResult of
+                  Nothing ->
+                      text ""
+                  Just string ->
+                      pre []
+                          [ text string ]
+            ]
         ]
 
 renderDownloadResult : Maybe (BackendResult) -> Html Msg
