@@ -299,7 +299,7 @@ update msg model =
           , Cmd.none
           )
       ReceiveIndexing state ->
-          case log "  " <| continueIndexing state of
+          case continueIndexing state of
               Err (backend, msg) ->
                   ( { model
                         | backend = backend

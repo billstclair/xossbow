@@ -16,6 +16,8 @@ module Xossbow.Actions exposing ( ActionState, Action, ActionResult
                                 , pushAction, appendActions, discardAction
                                 )
 
+import Debug exposing ( log )
+
 type ActionState state msg =
     TheActionState (StateRecord state msg)
 

@@ -266,7 +266,7 @@ updateIndices backend wrapper authorization perPage node added removed =
                  , backend = backend
                  , wrapper = wrapper
                  , authorization = authorization
-                 , result = Just (Ok <| DownloadFile backend.state Page "" Nothing)
+                 , result = Nothing
                  }
         actions = List.append (addedActions added) (removedActions removed)
         state = TheState <| makeActionState record actions
@@ -302,7 +302,9 @@ updatedActionState actionState =
                 actionState
             Just result ->
                 let backend = Types.updateStateFromResult result record.backend
-                    r2 = { record | backend = backend }
+                    r2 = { record | backend = backend
+                         , result = Nothing
+                         }
                 in
                     Actions.setState r2 actionState
 
@@ -322,7 +324,7 @@ continueIndexing (TheState state) =
                 in
                     Ok (Just backend, Cmd.none)
             else
-                continueIndexing (TheState state)
+                continueIndexing (TheState  <| updatedActionState state)
 
 {- For each "added" (<tag>, <index>) pair:
 If <index> is "" (which it should always be):
@@ -371,7 +373,7 @@ wrapBackendResult wrapper actionState result =
 readTagIndex : String -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 readTagIndex tag record actionState =
     let path = tagIndexFile tag
-        as2 = log "readTagIndex" <| updatedActionState actionState
+        as2 = updatedActionState actionState
         cmd = downloadFile
               record.backend
               (wrapBackendResult record.wrapper as2)
@@ -391,6 +393,7 @@ updateBackendState record state actionState =
         Actions.setState
             { record
                 | backend = { backend | state = state }
+                , result = Nothing
             }
             actionState
 
@@ -567,46 +570,48 @@ isLookupPageAtom path atom =
 
 writeNodePathToTagPageInternal : String -> IndexingRecord msg -> IndexingActionState msg -> Node msg -> List (Atom msg) -> ActionResult msg
 writeNodePathToTagPageInternal tag record actionState indexNode list =
-    let node = record.node
+    let as2 = updatedActionState actionState
+        node = record.node
         path = node.path
-        updateNode = (\_ ->
-                          case permindex indexNode of
-                              Nothing ->
-                                  node --maybe this should error instead
-                              Just index ->
-                                  let indices = Dict.insert
-                                                tag index node.indices
-                                  in
-                                      { node | indices = indices }
-                     )
+        index = Maybe.withDefault "" <| permindex indexNode
+        n2 = let indices = Dict.insert
+                           tag index node.indices
+             in
+                 { node | indices = indices }
+        r2 = Actions.getState as2
+        r3 = { r2 | node = n2 }
+        as3 = Actions.setState r3 as2
     in
-        case LE.find (isLookupPageAtom path) list
-        of
-            Just _ ->
-                let as2 = Actions.pushAction
-                          (writeNode <| (log "writeNode" <| updateNode ()))
-                          actionState
-                in
-                    nextAction as2
-            Nothing ->
-                if List.length list < record.perPage then
-                    -- The new page fits in the current index
-                    let in2 = { indexNode
-                                    | content =
+        if index == "" then
+            Err "Missing permindex"
+        else
+            case LE.find (isLookupPageAtom path) list
+            of
+                Just _ ->
+                    let as4 = Actions.pushAction
+                              (writeNode n2)
+                              as3
+                    in
+                        nextAction as4
+                Nothing ->
+                    if List.length list < record.perPage then
+                        -- The new page fits in the current index
+                        let in2 = { indexNode
+                                      | content =
                                         ListAtom
                                         <| LookupPageAtom path :: list
-                              }
-                        as2 = Actions.appendActions
-                              [ writeNode in2
-                              , writeNode <| updateNode ()
-                              ]
-                              actionState
-                    in
-                        nextAction as2
-                else
-                    -- The new page does NOT fit in the current index.
-                    -- Need to make a new index.
-                    writeNewIndexPage tag record actionState indexNode
+                                  }
+                            as4 = Actions.appendActions
+                                  [ writeNode in2
+                                  , writeNode n2
+                                  ]
+                                  as3
+                        in
+                            nextAction as4
+                    else
+                        -- The new page does NOT fit in the current index.
+                        -- Need to make a new index.
+                        writeNewIndexPage tag r3 as3 indexNode
 
 writeNewIndexPage : String -> IndexingRecord msg -> IndexingActionState msg -> Node msg -> ActionResult msg
 writeNewIndexPage tag record actionState indexNode =
@@ -671,6 +676,9 @@ writeTagIndex tag newidx record actionState =
 writeNode : Node msg -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeNode node record actionState =
     let n = Parsers.setNodeContent node.content node
+        indices = let path = log "writeNode" node.path
+                  in
+                      log "  indices" node.indices
         content = Parsers.encodeNode n
         as2 = updatedActionState actionState
         r2 = Actions.getState as2
