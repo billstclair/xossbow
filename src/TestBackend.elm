@@ -14,7 +14,7 @@ module TestBackend exposing (..)
 import Xossbow.Types as Types
     exposing ( UploadType(..), Authorization
              , BackendOperation, BackendWrapper, Backend, BackendResult
-             , BackendError(..)
+             , BackendError(..), ContentType(..)
              , authorize_, uploadFile, downloadFile, updateStateFromResult
              , Node, emptyNode
              )
@@ -26,6 +26,8 @@ import Xossbow.Indexing exposing ( IndexingState, IndexingWrapper
 import Xossbow.Backend.RamDict as RamDict
 import Xossbow.Backend.ApachePost as ApachePost
 import Xossbow.Parsers as Parsers
+
+import HtmlTemplate.Types exposing ( Atom(..) )
 
 import Html exposing ( Html, Attribute
                      , div, h2, p, text, input, select, option, button, pre
@@ -132,7 +134,8 @@ type Msg
     | CreateTag (Maybe String)
     | ReadTagIndex
     | Receive BackendResult
-    | ReceiveUpload (Node Msg) BackendResult
+    | ReceiveUpload (Maybe (Node Msg)) (Node Msg) BackendResult
+    | ReceiveDownloadForUpload Authorization BackendResult
     | ReceiveDownload BackendResult
     | ReceiveIndexing (IndexingState Msg)
     | ReceiveTags BackendResult
@@ -271,26 +274,41 @@ update msg model =
                 }
               , Cmd.none
               )
-      ReceiveUpload node result ->
+      ReceiveUpload oldNode node result ->
           let (m, _) = update (Receive result) model
           in
               case result of
                   Err _ -> (m, Cmd.none)
                   Ok _ ->
                       case m.tagsResult of
-                          Nothing -> (m, Cmd.none)
+                          Nothing -> update Download m
                           Just _ ->
                               case m.authorization of
                                   Nothing -> (m, Cmd.none)
                                   Just authorization ->
-                                      ( m
-                                      , index m.backend
-                                          ReceiveIndexing
-                                          authorization
-                                          10
-                                          Nothing
-                                          node
-                                      )
+                                      let cmd = index m.backend
+                                                ReceiveIndexing
+                                                authorization
+                                                10
+                                                (log "oldNode" oldNode)
+                                                (log "  node" node)
+                                      in
+                                          if cmd == Cmd.none then
+                                              update Download m
+                                          else
+                                              ( m, cmd)
+      ReceiveDownloadForUpload authorization result ->
+          let (m, _) = update (ReceiveDownload result) model
+              oldNode = downloadedNode model
+              node = contentNode oldNode model
+          in
+              ( m
+              , uploadFile m.backend (ReceiveUpload oldNode node)
+                  authorization
+                  Page
+                  m.path
+                  <| Parsers.encodeNode node
+              )              
       ReceiveDownload result ->
           ( { model
                 | downloadResult = Just result
@@ -314,13 +332,14 @@ update msg model =
                       Just backend ->
                           let m = { model | backend = backend }
                           in
-                              ( m
-                              , case m.tagsResult of
-                                    Nothing ->
-                                        Cmd.batch [cmd, downloadTags m]
-                                    Just _ ->
-                                        cmd
-                              )
+                              case m.tagsResult of
+                                  Nothing ->
+                                      (m, Cmd.batch [cmd, downloadTags m])
+                                  Just _ ->
+                                      if cmd == Cmd.none then
+                                          update Download m
+                                      else
+                                          (m, cmd)
       ReceiveTags result ->
           case result of
               Err (NotFoundError, _) ->
@@ -334,35 +353,74 @@ update msg model =
 
 uploadContent : Authorization -> Model -> (Model, Cmd Msg)
 uploadContent authorization model =
-    let node = contentNode model
-    in
-        ( { model | result = Nothing }
-        , case model.uploadType of
-              Page ->
-                  uploadFile model.backend (ReceiveUpload node)
-                      authorization
-                      model.uploadType
-                      model.path
-                      <| Parsers.encodeNode node
-              uploadType ->
-                  uploadFile model.backend Receive
-                      authorization
-                      uploadType
-                      model.path
-                      model.content
+    ( { model | result = Nothing }
+    , case model.uploadType of
+          Page ->
+              downloadFile model.backend
+                  (ReceiveDownloadForUpload authorization)
+                  Page
+                  model.path
+          uploadType ->
+              uploadFile model.backend Receive
+                  authorization
+                  uploadType
+                  model.path
+                  model.content
     )
 
-contentNode : Model -> Node msg
-contentNode model =
+downloadedNode : Model -> Maybe (Node Msg)
+downloadedNode model =
+    case model.downloadResult of
+        Nothing ->
+            Nothing
+        Just result ->
+            case result of
+                Err _ ->
+                    Nothing
+                Ok operation ->
+                    let (uploadType, path)
+                            = Types.operationUploadTypeAndPath operation
+                    in
+                        if model.path == path
+                            && model.uploadType == uploadType
+                    then
+                        case Parsers.parseNode
+                            <| Types.downloadedContent operation
+                        of
+                            Err _ ->
+                                Nothing
+                            Ok node ->
+                                Just node
+                    else
+                        Nothing
+                            
+contentNode : Maybe (Node msg) -> Model -> Node msg
+contentNode maybeNode model =
     let tags = case model.tagsResult of
                    Nothing -> []
                    Just _ -> parseTags model.tags
+        oldNode = case maybeNode of
+                      Just node ->
+                          node
+                      Nothing ->
+                          emptyNode
+        oldIndices = oldNode.indices
+        indices = Dict.fromList
+                  <| List.map
+                      (\tag ->
+                           (tag, case Dict.get tag oldIndices of
+                                     Nothing -> ""
+                                     Just idx -> idx
+                           )
+                      )
+                      tags
     in
-      { emptyNode
-          | indices = Dict.fromList
-                      <| List.map (\tag -> (tag, "")) tags
+      { oldNode
+          | indices = indices
           , path = model.path
           , rawContent = model.content
+          , contentType = Text
+          , content = StringAtom model.content
       }
 
 parseTags : String -> List String

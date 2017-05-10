@@ -24,6 +24,7 @@ module Xossbow.Types exposing ( Node, nodeVersion, emptyNode
                               , uploadFile, deleteFile
                               , uploadTypeToString, settingsPath, uploadPath
                               , backendErrorToString, operationPath
+                              , operationUploadTypeAndPath
                               , downloadedContent
                               )
 
@@ -225,6 +226,18 @@ operationPath operation =
             uploadPath uploadType path
         DeleteFile _ _ uploadType path ->
             uploadPath uploadType path
+
+operationUploadTypeAndPath : BackendOperation -> (UploadType, String)
+operationUploadTypeAndPath operation =
+    case operation of
+        DownloadFile _ uploadType path _ ->
+            (uploadType, path)
+        Authorize _ _ ->
+            (Settings, "")
+        UploadFile _ _ uploadType path _ ->
+            (uploadType, path)
+        DeleteFile _ _ uploadType path ->
+            (uploadType, path)
 
 downloadedContent : BackendOperation -> String
 downloadedContent operation =

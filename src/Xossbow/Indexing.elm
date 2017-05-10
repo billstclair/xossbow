@@ -676,9 +676,7 @@ writeTagIndex tag newidx record actionState =
 writeNode : Node msg -> IndexingRecord msg -> IndexingActionState msg -> ActionResult msg
 writeNode node record actionState =
     let n = Parsers.setNodeContent node.content node
-        indices = let path = log "writeNode" node.path
-                  in
-                      log "  indices" node.indices
+        indices = node.indices
         content = Parsers.encodeNode n
         as2 = updatedActionState actionState
         r2 = Actions.getState as2
@@ -734,7 +732,7 @@ removeNodePathFromTagPage tag record actionState =
         updateState = (\state -> updateBackendState record state actionState)
         updateContent = (\atom list node ->
                              let content = ListAtom <| LE.remove atom list
-                                 n2 = { node | content = content }
+                                 n2 = log "  updateContent" { node | content = content }
                              in
                                  nextAction
                                  <| Actions.pushAction (writeNode n2) actionState
@@ -748,8 +746,8 @@ removeNodePathFromTagPage tag record actionState =
                                  case content of
                                      ListAtom list ->
                                          case LE.find
-                                             (isLookupPageAtom path)
-                                             list
+                                             (isLookupPageAtom <| log "path" path)
+                                             <| log "  list" list
                                          of
                                              Nothing ->
                                                  Ok <| stateCmd record.wrapper
