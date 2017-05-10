@@ -447,7 +447,9 @@ processPossiblyMissingPageContents function allowNotFound record actionState pro
     in
         case record.result of
             Nothing ->
-                error "Missing result"
+                let backend = record.backend
+                in
+                    processor error backend.state "" Nothing
             Just result ->
                 case result of
                     Err (err, operation) ->
@@ -732,7 +734,7 @@ removeNodePathFromTagPage tag record actionState =
         updateState = (\state -> updateBackendState record state actionState)
         updateContent = (\atom list node ->
                              let content = ListAtom <| LE.remove atom list
-                                 n2 = log "  updateContent" { node | content = content }
+                                 n2 = { node | content = content }
                              in
                                  nextAction
                                  <| Actions.pushAction (writeNode n2) actionState
@@ -746,8 +748,8 @@ removeNodePathFromTagPage tag record actionState =
                                  case content of
                                      ListAtom list ->
                                          case LE.find
-                                             (isLookupPageAtom <| log "path" path)
-                                             <| log "  list" list
+                                             (isLookupPageAtom path)
+                                             list
                                          of
                                              Nothing ->
                                                  Ok <| stateCmd record.wrapper

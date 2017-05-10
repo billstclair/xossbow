@@ -290,8 +290,8 @@ update msg model =
                                                 ReceiveIndexing
                                                 authorization
                                                 10
-                                                (log "oldNode" oldNode)
-                                                (log "  node" node)
+                                                oldNode
+                                                node
                                       in
                                           if cmd == Cmd.none then
                                               update Download m
