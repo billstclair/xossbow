@@ -1,0 +1,11 @@
+{ version: "1"
+, title: "Edit Post"
+, author: "Bill St. Clair"
+, contentType: "Json"
+}
+
+["table",{"class":"form"},
+ [["#textInputRow","Title:","title"],
+  ["#textInputRow","Alias:","alias"]
+ ]
+]

@@ -54,7 +54,8 @@ import HtmlTemplate.PlayDiv exposing ( PlayState, emptyPlayState
 import Html exposing ( Html, Attribute
                      , div, p, text, a, textarea, pre
                      )
-import Html.Attributes as Attributes exposing ( style, href, rows, cols, class )
+import Html.Attributes as Attributes exposing ( style, href, rows, cols, class
+                                              , type_, value )
 import Html.Events exposing ( onClick, onInput )
 import Http
 import Date
@@ -184,6 +185,7 @@ messages =
 stringMessages : List (String, List (Atom Msg) -> Dicts Msg -> (String -> Msg))
 stringMessages =
     [ ( "set", setMessage )
+    , ( "setText", setTextMessage )
     ]
 
 pageLinkFunction : List (Atom Msg) -> d -> Atom Msg
@@ -237,12 +239,98 @@ getFunction args dicts =
         _ ->
             emptyString
 
+record : String -> List (String, Atom Msg) -> List (Atom Msg) -> Atom Msg
+record tag attributes body =
+    RecordAtom
+        { tag = tag
+        , attributes = attributes
+        , body = body
+        }
+
+funcall : String -> List (Atom Msg) -> Atom Msg
+funcall function args =
+    FuncallAtom
+        { function = function
+        , args = args
+        }
+
+textInputFunction : List (Atom Msg) -> Dicts Msg -> Atom Msg
+textInputFunction args dicts =
+    case args of
+        [ PListAtom attributes, StringAtom name ] ->
+            record "input"
+                (List.append
+                     [ ("type", StringAtom "text")
+                     , ("onInput"
+                       , funcall "onTextInput" [ StringAtom name ]
+                       )
+                     , ("value"
+                       , funcall "getText" [ StringAtom name ]
+                       )
+                     ]
+                    attributes
+                )
+                []
+        _ ->
+            cantFuncall "textInput" args
+
+onTextInputFunction : List (Atom Msg) -> d -> Atom Msg
+onTextInputFunction args dicts =
+    case args of
+        [ StringAtom name ] ->
+            funcall "onInput" [ funcall "SetText" [ StringAtom name ] ]
+        _ ->
+            funcall "title"
+                [ StringAtom <| "Bad onTextInput args" ++ (toString args) ]
+
+setTextMessage : List (Atom Msg) -> d -> (String -> Msg)
+setTextMessage args _ =
+    case args of
+        [ StringAtom name ] ->
+            SetText name
+        _ ->
+            (\x -> SetError x)
+
+getTextFunction : List (Atom Msg) -> Dicts Msg -> Atom Msg
+getTextFunction args dicts =
+    case args of
+        [ StringAtom name ] ->
+            -- TODO
+            StringAtom name
+        _ ->
+            cantFuncall "getText" args
+
+textInputRowFunction : List (Atom Msg) -> Dicts Msg -> Atom Msg
+textInputRowFunction args dicts =
+    case args of
+        [ StringAtom title, StringAtom name ] ->
+            record "tr"
+                []
+                [ record "th"
+                      []
+                      [ StringAtom title ]
+                , record "td"
+                    []
+                    [ textInputFunction
+                          [ PListAtom []
+                          , StringAtom name
+                          ]
+                          dicts
+                    ]
+                ]
+        _ ->
+            cantFuncall "textInputRow" args
+
 functions : List (String, List (Atom Msg) -> Dicts Msg -> Atom Msg)
 functions =
     [ ( "pageLink", pageLinkFunction )
     , ( "emailLink", emailLinkFunction )
     , ( "xossbow", xossbowFunction )
     , ( "get", getFunction )
+    , ( "textInput", textInputFunction )
+    , ( "onTextInput", onTextInputFunction )
+    , ( "getText", getTextFunction )
+    , ( "textInputRow", textInputRowFunction )
     ]
 
 type alias Extra =
@@ -323,6 +411,7 @@ type Msg
     | SetMsg String String
     | Login String String
     | HandleLogin BackendResult
+    | SetText String String
 
 templateDir : Loaders Msg Extra -> String
 templateDir loaders =
@@ -395,6 +484,11 @@ update msg model =
             login username password model
         HandleLogin result ->
             handleLogin result <| updateBackend result model
+        SetText name value ->
+            -- TODO
+            ( { model | error = Just <| name ++ " = " ++ value }
+            , Cmd.none
+            )
 
 pageFromLocation : Location -> String
 pageFromLocation location =

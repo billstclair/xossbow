@@ -18,7 +18,7 @@ To test compile a file in the `src/` directory, e.g. Xossbow.elm:
     cd .../xossbow
     bin/m Xossbow
     
-To build Xossbow, and put the resulting `index.html` into the `src/` directory:
+To build Xossbow, and put the resulting `index.html` into the `site/` directory:
 
     cd .../xossbow
     bin/build
