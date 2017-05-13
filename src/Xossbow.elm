@@ -186,7 +186,7 @@ stringMessages : List (String, List (Atom Msg) -> Dicts Msg -> (String -> Msg))
 stringMessages =
     [ ( "set", setMessage )
     , ( "setText", setTextMessage )
-    , ( "onTextInput", onTextInputMessage )
+    , ( "setText", setTextMessage )
     ]
 
 pageLinkFunction : List (Atom Msg) -> d -> Atom Msg
@@ -263,7 +263,7 @@ textInputFunction args dicts =
                 (List.append
                      [ ("type", StringAtom "text")
                      , ("onInput"
-                       , funcall "onTextInput" [ StringAtom name ]
+                       , funcall "setText" [ StringAtom name ]
                        )
                      , ("value"
                        , funcall "getText" [ StringAtom name ]
@@ -275,21 +275,13 @@ textInputFunction args dicts =
         _ ->
             cantFuncall "textInput" args
 
-onTextInputMessage : List (Atom Msg) -> d -> (String -> Msg)
-onTextInputMessage args dicts =
+setTextMessage : List (Atom Msg) -> d -> (String -> Msg)
+setTextMessage args dicts =
     case args of
         [ StringAtom name ] ->
             SetText name
         _ ->
             (\_ -> SetError <| "Can't set value: " ++ (toString args))
-
-setTextMessage : List (Atom Msg) -> d -> (String -> Msg)
-setTextMessage args _ =
-    case args of
-        [ StringAtom name ] ->
-            SetText name
-        _ ->
-            (\x -> SetError x)
 
 formText : String
 formText =
@@ -346,6 +338,22 @@ textInputRowFunction args dicts =
         _ ->
             cantFuncall "textInputRow" args
 
+textValueRowFunction : List (Atom Msg) -> Dicts Msg -> Atom Msg
+textValueRowFunction args dicts =
+    case args of
+        [ StringAtom title, StringAtom name ] ->
+            record "tr"
+                []
+                [ record "th"
+                      []
+                      [ StringAtom title ]
+                , record "td"
+                    []
+                    [ funcall "getText" [StringAtom name] ]
+                ]
+        _ ->
+            cantFuncall "textInputRow" args
+
 functions : List (String, List (Atom Msg) -> Dicts Msg -> Atom Msg)
 functions =
     [ ( "pageLink", pageLinkFunction )
@@ -355,6 +363,7 @@ functions =
     , ( "textInput", textInputFunction )
     , ( "getText", getTextFunction )
     , ( "textInputRow", textInputRowFunction )
+    , ( "textValueRow", textValueRowFunction )
     ]
 
 type alias Extra =

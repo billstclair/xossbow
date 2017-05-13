@@ -4,8 +4,26 @@
 , contentType: "Json"
 }
 
-["table",{"class":"form"},
- [["#textInputRow","Title:","title"],
-  ["#textInputRow","Alias:","alias"]
+["div",{},
+ [["table",{"class":"form"},
+   [["#textValueRow","Author:","author"],
+    ["#textValueRow","Time:","time"],
+    ["#textInputRow","Title:","title"],
+    ["#textInputRow","Path:","path"]
+   ]
+  ],
+  ["p",{},
+   [["b",{},"Body:"],
+    ["br",{},[]],
+    ["textarea",{"wrap":"virtual",
+                 "cols":80,
+                 "rows":20,
+                 "onInput":["#setText","body"],
+                 "value":["#getText","body"]
+                },
+     []
+    ]
+   ]
+  ]
  ]
 ]
