@@ -186,6 +186,7 @@ stringMessages : List (String, List (Atom Msg) -> Dicts Msg -> (String -> Msg))
 stringMessages =
     [ ( "set", setMessage )
     , ( "setText", setTextMessage )
+    , ( "onTextInput", onTextInputMessage )
     ]
 
 pageLinkFunction : List (Atom Msg) -> d -> Atom Msg
@@ -274,14 +275,13 @@ textInputFunction args dicts =
         _ ->
             cantFuncall "textInput" args
 
-onTextInputFunction : List (Atom Msg) -> d -> Atom Msg
-onTextInputFunction args dicts =
+onTextInputMessage : List (Atom Msg) -> d -> (String -> Msg)
+onTextInputMessage args dicts =
     case args of
         [ StringAtom name ] ->
-            funcall "onInput" [ funcall "SetText" [ StringAtom name ] ]
+            SetText name
         _ ->
-            funcall "title"
-                [ StringAtom <| "Bad onTextInput args" ++ (toString args) ]
+            (\_ -> SetError <| "Can't set value: " ++ (toString args))
 
 setTextMessage : List (Atom Msg) -> d -> (String -> Msg)
 setTextMessage args _ =
@@ -291,12 +291,37 @@ setTextMessage args _ =
         _ ->
             (\x -> SetError x)
 
+formText : String
+formText =
+    "<formText>"
+
+setText : String -> Atom Msg -> Loaders Msg x -> Loaders Msg x
+setText name value loaders =
+    let plist = case getAtom formText loaders of
+                    Just (PListAtom res) ->
+                        Types.set name value res
+                    _ ->
+                        [(name, value)]
+    in
+        setAtom formText (PListAtom plist) loaders
+
+getText : String -> Dicts Msg -> Atom Msg
+getText name dicts =
+    case getDictsAtom formText dicts of
+        Just (PListAtom plist) ->
+            case Types.get name plist of
+                Just res ->
+                    res
+                Nothing ->
+                    emptyString
+        _ ->
+            emptyString
+                                        
 getTextFunction : List (Atom Msg) -> Dicts Msg -> Atom Msg
 getTextFunction args dicts =
     case args of
         [ StringAtom name ] ->
-            -- TODO
-            StringAtom name
+            getText name dicts
         _ ->
             cantFuncall "getText" args
 
@@ -328,7 +353,6 @@ functions =
     , ( "xossbow", xossbowFunction )
     , ( "get", getFunction )
     , ( "textInput", textInputFunction )
-    , ( "onTextInput", onTextInputFunction )
     , ( "getText", getTextFunction )
     , ( "textInputRow", textInputRowFunction )
     ]
@@ -485,8 +509,7 @@ update msg model =
         HandleLogin result ->
             handleLogin result <| updateBackend result model
         SetText name value ->
-            -- TODO
-            ( { model | error = Just <| name ++ " = " ++ value }
+            ( { model | loaders = setText name (StringAtom value) model.loaders }
             , Cmd.none
             )
 
