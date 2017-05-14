@@ -320,7 +320,7 @@ getTextFunction args dicts =
 textInputRowFunction : List (Atom Msg) -> Dicts Msg -> Atom Msg
 textInputRowFunction args dicts =
     case args of
-        [ StringAtom title, StringAtom name ] ->
+        [ StringAtom title, StringAtom name, IntAtom size ] ->
             record "tr"
                 []
                 [ record "th"
@@ -329,7 +329,7 @@ textInputRowFunction args dicts =
                 , record "td"
                     []
                     [ textInputFunction
-                          [ PListAtom []
+                          [ PListAtom [("size", IntAtom size)]
                           , StringAtom name
                           ]
                           dicts
@@ -354,6 +354,28 @@ textValueRowFunction args dicts =
         _ ->
             cantFuncall "textInputRow" args
 
+formSelectorFunction : List (Atom Msg) -> d -> Atom Msg
+formSelectorFunction args _ =
+    case args of
+        [ StringAtom name, ListAtom options, StringAtom selection ] ->
+            record "select"
+                [ ("onInput", funcall "setText" [StringAtom name])
+                ] <|
+                List.map (\(value) ->
+                    let s = case value of
+                                StringAtom string -> string
+                                _ -> toString value
+                    in
+                        record "option"
+                            [ ("value", StringAtom s)
+                            , ("selected", BoolAtom (selection == s))
+                            ]
+                            [value]
+                    )
+                    options
+        _ ->
+            cantFuncall "formSelector" args
+
 functions : List (String, List (Atom Msg) -> Dicts Msg -> Atom Msg)
 functions =
     [ ( "pageLink", pageLinkFunction )
@@ -364,6 +386,7 @@ functions =
     , ( "getText", getTextFunction )
     , ( "textInputRow", textInputRowFunction )
     , ( "textValueRow", textValueRowFunction )
+    , ( "formSelector", formSelectorFunction )
     ]
 
 type alias Extra =

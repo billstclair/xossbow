@@ -8,8 +8,8 @@
  [["table",{"class":"form"},
    [["#textValueRow","Author:","author"],
     ["#textValueRow","Time:","time"],
-    ["#textInputRow","Title:","title"],
-    ["#textInputRow","Path:","path"]
+    ["#textInputRow","Title:","title",40],
+    ["#textInputRow","Path:","path",40]
    ]
   ],
   ["p",{},
@@ -22,6 +22,19 @@
                  "value":["#getText","body"]
                 },
      []
+    ]
+   ]
+  ],
+  ["table",{"class":"form"},
+   [["#textInputRow","Tags (a,b,...):","tags",60],
+    ["tr",{},
+     [["th",{},["Content:"]],
+      ["td",{},[["#formSelector","contentType",
+                 ["Markup","Json","Text","Code"],
+                 ["#getText","contentType"]
+                ]]
+      ]
+     ]
     ]
    ]
   ]
